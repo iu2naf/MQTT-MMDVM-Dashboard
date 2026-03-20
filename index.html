@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT MMDVM Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+            <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+            <circle cx="12" cy="12" r="2" />
+            <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+            <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1" />
+            <path d="M9 22v-4h6v4" />
+            <path d="m11.6 16.8-1.5-6" />
+            <path d="m12.4 16.8 1.5-6" />
+        </svg>
+        <div class="header-titles">
+            <h1>MQTT MMDVM Dashboard</h1>
+            <h2>MultiRepeater traffic in real time</h2>
+        </div>
+    </header>
+
+    <main>
+        <div class="filters">
+            <button class="filter-btn active" data-mode="all">TUTTI</button>
+            <button class="filter-btn" data-mode="dmr">DMR</button>
+            <button class="filter-btn" data-mode="ysf">YSF</button>
+            <button class="filter-btn" data-mode="nxdn">NXDN</button>
+            <button class="filter-btn" data-mode="d-star">D-STAR</button>
+        </div>
+
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="small">FROM</th>
+                        <th>MODO</th>
+                        <th>ID</th>
+                        <th>NOME</th>
+                        <th class="tg">TG</th>
+                        <th>NODO</th>
+                        <th>BER</th>
+                        <th>DATA</th>
+                        <th>ORA</th>
+                        <th>SLOT</th>
+                        <th>TIME (s)</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer>
+        © FreeDMR Italia - For amateur radio use only - Ver. 0.1.7 β - 19/03/2026 - Developed by FreeDMR-IT Dev Team
+        2026
+    </footer>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then((reg) => {
+                    console.log('Service Worker registered.', reg);
+                }).catch((err) => {
+                    console.log('Service Worker registration failed.', err);
+                });
+            });
+        }
+
+        let currentMode = "all";
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.getAttribute('data-mode');
+                loadData();
+            });
+        });
+
+        async function loadData() {
+            try {
+                const res = await fetch('/data');
+                const response = await res.json();
+                const data = response.calls;
+                const serverTime = response.server_time;
+                const localTime = Date.now() / 1000;
+                const serverOffset = serverTime - localTime;
+
+                const tbody = document.getElementById("table-body");
+                tbody.innerHTML = "";
+
+                data.reverse().forEach(call => {
+
+                    let row = document.createElement("tr");
+
+                    // evidenzia chiamata attiva
+                    if (call.TIME === "") {
+                        row.classList.add("active");
+                    }
+
+                    let fromClass = call.FROM === "RF" ? "badge rf" : "badge netw";
+                    let slotClass = call.SLOT === "1" ? "badge slot1" : "badge slot2";
+
+                    const escapeHtml = (unsafe) => {
+                        return (unsafe || "").toString()
+                            .replace(/&/g, "&amp;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;")
+                            .replace(/"/g, "&quot;")
+                            .replace(/'/g, "&#039;");
+                    };
+
+                    let modeClass = call.MODE ? ("badge mode-" + escapeHtml(call.MODE).toLowerCase()) : "";
+
+                    let berValue = parseFloat(call.BER.replace('%', '')) || 0;
+                    let berClass = "ber-cell";
+                    if (berValue < 1) berClass += " ber-low";
+                    else if (berValue <= 3) berClass += " ber-mid";
+                    else berClass += " ber-high";
+
+                    let displayTime = call.TIME.toString();
+                    if (displayTime === "" && call.start_ts) {
+                        const currentServerTime = (Date.now() / 1000) + serverOffset;
+                        let diff = Math.floor(currentServerTime - call.start_ts);
+                        if (diff < 0) diff = 0; // Fix negative timer during live tx
+                        displayTime = diff.toString();
+                    } else if (displayTime !== "" && !displayTime.includes("!")) {
+                        // Fix negative timer if it comes from the backend as a completed tx
+                        let dur = parseFloat(displayTime);
+                        if (!isNaN(dur) && dur < 0) displayTime = "0";
+                    }
+
+                    if (displayTime !== "") {
+                        if (displayTime.includes("!")) {
+                            displayTime = displayTime.replace("!", "") + "s!";
+                        } else {
+                            displayTime += "s";
+                        }
+                    }
+
+                    row.innerHTML = `
+                <td><span class="${fromClass}">${escapeHtml(call.FROM)}</span></td>
+                <td><span class="${modeClass}">${escapeHtml(call.MODE || "DMR")}</span></td>
+                <td class="id-cell">${escapeHtml(call.ID)}</td>
+                <td class="name-cell">${escapeHtml(call.NAME)}</td>
+                <td class="tg">${escapeHtml(call.TG)}</td>
+                <td class="nodo-cell">${escapeHtml(call.NODO).toUpperCase()}</td>
+                <td class="${berClass}">${escapeHtml(call.BER)}</td>
+                <td>${escapeHtml(call.DATA)}</td>
+                <td>${escapeHtml(call.ORARIO)}</td>
+                <td><span class="${slotClass}">TS ${escapeHtml(call.SLOT)}</span></td>
+                <td class="time-cell">${displayTime}</td>
+            `;
+
+                    if (currentMode === "all" || call.MODE.toLowerCase() === currentMode) {
+                        tbody.appendChild(row);
+                    }
+                });
+            } catch (error) {
+                console.error("Errore nel caricamento dei dati:", error);
+            }
+        }
+
+        setInterval(loadData, 1000);
+        loadData();
+    </script>
+
+</body>
+
+</html>

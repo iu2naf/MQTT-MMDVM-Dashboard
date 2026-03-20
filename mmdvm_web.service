@@ -1,0 +1,17 @@
+[Unit]
+Description=MMDVM MQTT Dashboard
+After=network.target
+
+[Service]
+# Carica le credenziali da un file esterno non incluso nel repository
+EnvironmentFile=/opt/mmdvm_web/.env
+
+User=root
+WorkingDirectory=/opt/mmdvm_web
+
+ExecStart=/usr/bin/python3 /opt/mmdvm_web/app.py
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

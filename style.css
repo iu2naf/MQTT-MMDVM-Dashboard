@@ -1,0 +1,338 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --bg-color: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --accent: #3b82f6;
+    --rf-color: #10b981;
+    --netw-color: #3b82f6;
+    --slot1-color: #ef4444;
+    --slot2-color: #06b6d4;
+    --active-bg: rgba(16, 185, 129, 0.1);
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    background-image: radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.15), transparent 25%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    background: rgba(2, 6, 23, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+header svg {
+    color: var(--accent);
+}
+
+.header-titles {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.header-titles h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.header-titles h2 {
+    margin: 4px 0 0 0;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+footer {
+    padding: 20px;
+    background: rgba(2, 6, 23, 0.5);
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+main {
+    flex: 1;
+    padding: 30px 20px;
+    width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+.table-container {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 2px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    overflow-x: auto;
+}
+
+.filters {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.filter-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filter-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.filter-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+}
+
+th,
+td {
+    padding: 8px 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+th {
+    text-transform: uppercase;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+    padding-bottom: 12px;
+}
+
+tr {
+    transition: all 0.2s ease;
+}
+
+tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+    transform: translateY(-1px);
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.mode-dmr {
+    color: #f59e0b;
+    background-color: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.mode-ysf {
+    color: #8b5cf6;
+    background-color: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.mode-nxdn {
+    color: #ec4899;
+    background-color: rgba(236, 72, 153, 0.1);
+    border: 1px solid rgba(236, 72, 153, 0.2);
+}
+
+.mode-d-star {
+    color: #14b8a6;
+    background-color: rgba(20, 184, 166, 0.1);
+    border: 1px solid rgba(20, 184, 166, 0.2);
+}
+
+.rf {
+    color: var(--rf-color);
+    background-color: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.netw {
+    color: var(--netw-color);
+    background-color: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.slot1 {
+    color: var(--slot1-color);
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.slot2 {
+    color: var(--slot2-color);
+    background-color: rgba(6, 182, 212, 0.1);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.active {
+    background-color: var(--active-bg);
+    animation: activePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.active td {
+    border-bottom-color: transparent;
+}
+
+@keyframes activePulse {
+
+    0%,
+    100% {
+        background-color: rgba(16, 185, 129, 0.05);
+    }
+
+    50% {
+        background-color: rgba(16, 185, 129, 0.2);
+    }
+}
+
+.tg {
+    width: auto;
+    text-align: left;
+    white-space: nowrap;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.small {
+    width: auto;
+}
+
+.id-cell {
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.name-cell {
+    text-align: left;
+    font-size: 13px;
+}
+
+.nodo-cell {
+    font-weight: 700;
+    color: #facc15;
+    text-transform: uppercase;
+}
+
+.ber-cell {
+    font-family: monospace;
+    font-weight: 600;
+}
+
+.ber-low {
+    color: #10b981;
+}
+
+.ber-mid {
+    color: #facc15;
+}
+
+.ber-high {
+    color: #ef4444;
+}
+
+.time-cell {
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    main {
+        padding: 15px 10px;
+    }
+
+    .header-titles h1 {
+        font-size: 20px;
+    }
+
+    .filters {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .filter-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+        flex: 1 1 auto;
+        text-align: center;
+    }
+
+    th,
+    td {
+        padding: 10px 8px;
+        font-size: 13px;
+    }
+
+    .badge {
+        padding: 4px 10px;
+        font-size: 13px;
+    }
+}
+
+@media (pointer: coarse) {
+    .filter-btn:hover {
+        transform: none;
+    }
+
+    .table-container {
+        -webkit-overflow-scrolling: touch;
+    }
+}
