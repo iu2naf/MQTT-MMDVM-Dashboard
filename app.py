@@ -35,9 +35,22 @@ def icons(path):
 def data():
     import time
 
-    with mqtt_parser.calls_lock:
-        current_calls = list(mqtt_parser.calls)
+    current_calls = mqtt_parser.get_recent_calls(limit=40)
     return jsonify({"server_time": time.time(), "calls": current_calls})
+
+
+@app.route("/clear", methods=["POST"])
+def clear_history():
+    import sqlite3
+
+    conn = sqlite3.connect(mqtt_parser.DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM calls")
+    conn.commit()
+    conn.close()
+    with mqtt_parser.calls_lock:
+        mqtt_parser.calls.clear()
+    return jsonify({"status": "ok"})
 
 
 def start_mqtt():
@@ -54,7 +67,7 @@ if __name__ == "__main__":
         from waitress import serve
 
         print("Avvio del server WSGI (Waitress) sulla porta 958...")
-        serve(app, host="0.0.0.0", port=7000)
+        serve(app, host="0.0.0.0", port=958)
     except ImportError:
         print(
             "Libreria Waitress non trovata. Esecuzione server di sviluppo Flask sulla porta 958..."
@@ -62,4 +75,4 @@ if __name__ == "__main__":
         print(
             "Consiglio: per un ambiente stabile in produzione installa 'pip install waitress'."
         )
-        app.run(host="0.0.0.0", port=7000)
+        app.run(host="0.0.0.0", port=958)
