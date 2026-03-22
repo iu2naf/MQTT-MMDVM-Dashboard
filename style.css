@@ -97,9 +97,52 @@ main {
 
 .filters {
     display: flex;
-    justify-content: center;
+    flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 24px;
+}
+
+/* Tabs */
+.tabs-nav {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    width: fit-content;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+    animation: fadeIn 0.4s ease-out;
 }
 
 .filter-btn {
@@ -207,6 +250,27 @@ tbody tr:hover {
     transform: translateY(-1px);
 }
 
+/* Rimosso slideIn globale che causava flash ogni secondo */
+tbody tr {
+    /* Transizione fluida solo per i colori */
+    transition: background-color 0.3s ease;
+}
+
+/* Animazione solo per le nuove chiamate (se implementato logicamente)  */
+tbody tr.new-row {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0.5;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
 tbody tr:last-child td {
     border-bottom: none;
 }
@@ -306,6 +370,17 @@ tbody tr:last-child td {
     font-size: 13px;
 }
 
+.qrz-link {
+    color: var(--accent);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.qrz-link:hover {
+    text-decoration: underline;
+    color: var(--text-primary);
+}
+
 .name-cell {
     text-align: left;
     font-size: 13px;
@@ -336,6 +411,27 @@ tbody tr:last-child td {
 
 .time-cell {
     font-weight: 500;
+}
+
+/* Charts */
+.chart-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card h4 {
+    margin: 0 0 15px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Monitor Nodi Live */
@@ -386,9 +482,20 @@ tbody tr:last-child td {
 }
 
 @keyframes scanLine {
-    0% { transform: scaleX(0); opacity: 0; }
-    50% { transform: scaleX(1); opacity: 1; }
-    100% { transform: scaleX(0); opacity: 0; }
+    0% {
+        transform: scaleX(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scaleX(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scaleX(0);
+        opacity: 0;
+    }
 }
 
 .node-header {
@@ -427,9 +534,17 @@ tbody tr:last-child td {
 }
 
 @keyframes pulseSlow {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 .node-body {
@@ -457,6 +572,11 @@ tbody tr:last-child td {
     font-family: monospace;
     font-weight: 700;
     color: var(--accent);
+}
+
+.ber-value {
+    font-family: monospace;
+    font-weight: 700;
 }
 
 .node-timer {
