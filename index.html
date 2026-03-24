@@ -432,8 +432,8 @@
                 const localTime = Date.now() / 1000;
                 lastServerOffset = serverTime - localTime;
 
-                // Crea uno snapshot per confronto (senza timer live)
-                const dataSnapshot = JSON.stringify(data);
+                // Crea uno snapshot per confronto (dati + filtri attivi)
+                const dataSnapshot = JSON.stringify(data) + `|${currentMode}|${currentNode}|${currentTG}|${currentName}`;
                 const dataChanged = dataSnapshot !== lastDataSnapshot;
                 lastDataSnapshot = dataSnapshot;
 
