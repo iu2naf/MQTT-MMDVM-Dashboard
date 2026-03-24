@@ -66,8 +66,8 @@ if __name__ == "__main__":
     try:
         from waitress import serve
 
-        print("Avvio del server WSGI (Waitress) sulla porta 958...")
-        serve(app, host="0.0.0.0", port=958)
+        print("Avvio del server WSGI (Waitress) sulla porta 7000...")
+        serve(app, host="0.0.0.0", port=7000)
     except ImportError:
         print(
             "Libreria Waitress non trovata. Esecuzione server di sviluppo Flask sulla porta 958..."
@@ -75,4 +75,4 @@ if __name__ == "__main__":
         print(
             "Consiglio: per un ambiente stabile in produzione installa 'pip install waitress'."
         )
-        app.run(host="0.0.0.0", port=958)
+        app.run(host="0.0.0.0", port=7000)
