@@ -100,8 +100,15 @@
         </div>
 
         <div id="tab-stats" class="tab-pane">
-            <div id="map"
-                style="height: 400px; border-radius: 16px; margin-bottom: 30px; border: 1px solid var(--border-color);">
+            <div class="country-filter-container">
+                <span class="country-filter-label">Filtra per Paese</span>
+                <select id="country-filter">
+                    <option value="all">TUTTI I PAESI</option>
+                </select>
+            </div>
+            
+            <div class="map-wrapper">
+                <div id="map"></div>
             </div>
 
             <div class="stats-container"
@@ -138,7 +145,9 @@
         let currentNode = "all";
         let currentTG = "all";
         let currentName = "all";
-        let modeChart, tgChart, map, marker;
+        let currentCountry = "all";
+        let modeChart, tgChart, map, markersLayer;
+        let lastMapCallId = null;
         let lastServerOffset = 0;
         let activeTimers = []; // [{start_ts, nodeTimerEl, rowTimerEl}]
 
@@ -146,7 +155,15 @@
             "Italy": [41.9, 12.5], "Germany": [51.1, 10.4], "France": [46.2, 2.2],
             "United Kingdom": [55.3, -3.4], "Spain": [40.4, -3.7], "USA": [37.0, -95.7],
             "United States": [37.0, -95.7], "Switzerland": [46.8, 8.2], "Austria": [47.5, 14.5],
-            "Netherlands": [52.1, 5.2], "Belgium": [50.5, 4.4], "Canada": [56.1, -106.3]
+            "Netherlands": [52.1, 5.2], "Belgium": [50.5, 4.4], "Canada": [56.1, -106.3],
+            "Portugal": [39.4, -8.2], "Greece": [39.1, 21.8], "Sweden": [60.1, 18.6],
+            "Norway": [60.5, 8.4], "Finland": [61.9, 25.7], "Denmark": [56.2, 9.5],
+            "Poland": [51.9, 19.1], "Czech Republic": [49.8, 15.5], "Hungary": [47.1, 19.5],
+            "Romania": [45.9, 24.9], "Bulgaria": [42.7, 25.5], "Croatia": [45.1, 15.2],
+            "Slovenia": [46.1, 15.0], "Slovakia": [48.6, 19.7], "Ireland": [53.1, -8.2],
+            "Australia": [-25.2, 133.7], "New Zealand": [-40.9, 174.8], "Japan": [36.2, 138.2],
+            "Brazil": [-14.2, -51.9], "Argentina": [-38.4, -63.6], "Chile": [-35.6, -71.5],
+            "Mexico": [23.6, -102.5], "South Africa": [-30.5, 22.9]
         };
 
         const escapeHtml = (unsafe) => {
@@ -166,28 +183,100 @@
         };
 
         function initMap() {
-            map = L.map('map', { zoomControl: false }).setView([42, 12], 4);
+            map = L.map('map', { 
+                zoomControl: true,
+                dragging: true,
+                touchZoom: true,
+                doubleClickZoom: true,
+                scrollWheelZoom: true
+            }).setView([42, 12], 4);
+            
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
+
+            // Add zoom control at bottom right
+            map.zoomControl.setPosition('bottomright');
+
+            // Layer per i marker delle chiamate
+            markersLayer = L.layerGroup().addTo(map);
         }
 
-        function updateMap(call) {
-            if (!map || !call.COUNTRY) return;
-            const coords = countryCoords[call.COUNTRY];
-            if (coords) {
-                if (marker) map.removeLayer(marker);
-                marker = L.circleMarker(coords, {
-                    radius: 8,
-                    fillColor: "#3b82f6",
-                    color: "#fff",
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                }).addTo(map).bindPopup(`<b>${call.ID}</b><br>${call.CITY}, ${call.COUNTRY}`).openPopup();
-                map.panTo(coords);
-            }
+        function updateMap(calls, manual = false) {
+            if (!map || !markersLayer) return;
+
+            const uniqueCalls = new Map();
+            // Le chiamate sono già ordinate dalla più recente dal backend
+            calls.forEach(call => {
+                if (call.COUNTRY && !uniqueCalls.has(call.ID)) {
+                    uniqueCalls.set(call.ID, call);
+                }
+            });
+
+            const lastActiveCall = calls.find(c => c.TIME === "");
+            markersLayer.clearLayers();
+
+            uniqueCalls.forEach((call, id) => {
+                const coords = countryCoords[call.COUNTRY];
+                if (!coords) return;
+
+                // Aggiungi un piccolo jitter se ci sono più utenti nello stesso paese
+                const jitter = 0.4;
+                const lat = coords[0] + (Math.seededRandom(id + "lat") - 0.5) * jitter;
+                const lng = coords[1] + (Math.seededRandom(id + "lng") - 0.5) * jitter;
+
+                const isActive = call.TIME === "";
+                let m;
+
+                if (isActive) {
+                    const pulseIcon = L.divIcon({
+                        className: 'pulse-marker',
+                        html: '<div class="pulse"></div>',
+                        iconSize: [20, 20]
+                    });
+                    m = L.marker([lat, lng], { icon: pulseIcon });
+                } else {
+                    m = L.circleMarker([lat, lng], {
+                        radius: 8,
+                        fillColor: "#3b82f6",
+                        color: "#fff",
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.6
+                    });
+                }
+
+                m.addTo(markersLayer).bindPopup(`
+                    <div style="font-family: 'Inter', sans-serif; padding: 5px;">
+                        <b style="font-size: 14px; color: var(--accent);">${escapeHtml(call.ID)}</b>
+                        ${isActive ? ' <span style="color: #ef4444; font-size: 10px; font-weight: bold;">(TX)</span>' : ''}<br>
+                        <span style="color: #64748b; font-size: 12px;">${escapeHtml(call.NAME)}</span><br>
+                        <span style="font-size: 11px;">${escapeHtml(call.CITY)}, ${escapeHtml(call.COUNTRY)}</span>
+                    </div>
+                `);
+
+                if (isActive && lastActiveCall && lastActiveCall.ID === id) {
+                    const callKey = call.ID + (call.start_ts || "");
+                    if (manual || lastMapCallId !== callKey) {
+                        lastMapCallId = callKey;
+                        if (currentCountry === "all" || manual) {
+                            map.flyTo([lat, lng], 6, { animate: true, duration: 1.5 });
+                        }
+                    }
+                }
+            });
         }
+
+        // Funzione helper per jitter deterministico basato su ID
+        Math.seededRandom = function(seed) {
+            let hash = 0;
+            for (let i = 0; i < seed.length; i++) {
+                hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+                hash |= 0;
+            }
+            const x = Math.sin(hash) * 10000;
+            return x - Math.floor(x);
+        };
 
         function initCharts() {
             const chartOptions = {
@@ -265,6 +354,19 @@
             loadData();
         });
 
+        document.getElementById('country-filter').addEventListener('change', (e) => {
+            currentCountry = e.target.value;
+            if (currentCountry !== "all") {
+                const coords = countryCoords[currentCountry];
+                if (coords) {
+                    map.flyTo(coords, 6);
+                }
+            } else {
+                map.flyTo([42, 12], 4);
+            }
+            loadData();
+        });
+
         document.getElementById('clear-history').addEventListener('click', async () => {
             if (confirm("Are you sure you want to clear the history?")) {
                 await fetch('/clear', { method: 'POST' });
@@ -282,7 +384,17 @@
                 const tabId = "tab-" + btn.dataset.tab;
                 document.getElementById(tabId).classList.add('active');
 
-                if (btn.dataset.tab === 'stats' && map) {
+                // Disabilita filtri se siamo in Analytics & Map
+                const isStats = btn.dataset.tab === 'stats';
+                document.querySelectorAll('.filters .filter-btn[data-mode]').forEach(b => {
+                    b.classList.toggle('disabled', isStats);
+                });
+                document.querySelectorAll('.dropdown-filters select').forEach(s => {
+                    s.classList.toggle('disabled', isStats);
+                    s.disabled = isStats;
+                });
+
+                if (isStats && map) {
                     setTimeout(() => map.invalidateSize(), 100);
                 }
             });
@@ -304,7 +416,7 @@
                 if (val) {
                     const opt = document.createElement('option');
                     opt.value = val;
-                    opt.textContent = val;
+                    opt.textContent = val.toUpperCase();
                     if (val === currentVal) opt.selected = true;
                     select.appendChild(opt);
                 }
@@ -346,7 +458,7 @@
                             </div>
                             <div class="node-info-row">
                                 <span class="node-label">Mode:</span>
-                                <span class="node-value">${escapeHtml(lastCall.MODE)}</span>
+                                <span class="node-value">${escapeHtml(lastCall.MODE)}${lastCall.MODE.toUpperCase() === 'DMR' ? ' (TS ' + lastCall.SLOT + ')' : ''}</span>
                             </div>
                             <div class="node-info-row">
                                 <span class="node-label">BER:</span>
@@ -441,16 +553,19 @@
                 const nodes = new Set();
                 const tgs = new Set();
                 const names = new Set();
+                const countries = new Set();
 
                 data.forEach(call => {
                     if (call.NODO) nodes.add(call.NODO.toUpperCase());
                     if (call.TG) tgs.add(call.TG);
                     if (call.NAME) names.add(call.NAME);
+                    if (call.COUNTRY) countries.add(call.COUNTRY);
                 });
 
                 updateDropdown('node-filter', nodes, currentNode, 'NODO');
                 updateDropdown('tg-filter', tgs, currentTG, 'TG');
                 updateDropdown('name-filter', names, currentName, 'NAME');
+                updateDropdown('country-filter', countries, currentCountry, 'PAESE');
 
                 // Aggiorna DOM solo se i dati sono cambiati
                 if (dataChanged) {
@@ -468,6 +583,7 @@
                     const sortedNodes = Array.from(nodesMap.keys()).sort();
                     let nodesHtml = "";
                     sortedNodes.forEach(nodeName => {
+                        if (currentNode !== "all" && nodeName !== currentNode) return;
                         nodesHtml += buildNodeCardHtml(nodeName, nodesMap.get(nodeName), lastServerOffset);
                     });
                     nodesStatusContainer.innerHTML = nodesHtml;
@@ -487,11 +603,10 @@
                         }
                     });
                     tbody.innerHTML = tableHtml;
-                }
 
-                // Update Map with latest live call
-                const lastActiveCall = data.find(c => c.TIME === "");
-                if (lastActiveCall) updateMap(lastActiveCall);
+                    // Update Map globally only if data changed to preserve popups
+                    updateMap(data);
+                }
 
                 // Aggiorna Grafici
                 const modeCounts = {};
