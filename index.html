@@ -109,8 +109,35 @@
                 <h3 style="margin: 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
                     Live Nodes Monitor
                 </h3>
+                <div class="view-toggle" style="display: flex; gap: 8px;">
+                    <button id="view-cards-btn" class="filter-btn" style="display: flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                        Cards
+                    </button>
+                    <button id="view-table-btn" class="filter-btn active" style="display: flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        Table
+                    </button>
+                </div>
             </div>
-            <div id="nodes-status-container" class="nodes-grid"></div>
+            <div id="nodes-status-container" class="nodes-grid" style="display: none;"></div>
+            <div id="nodes-table-container" class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>NODE</th>
+                            <th>STATUS</th>
+                            <th>OPERATOR</th>
+                            <th>NAME</th>
+                            <th>TARGET</th>
+                            <th>MODE</th>
+                            <th>BER</th>
+                            <th>DURATION</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nodes-table-body"></tbody>
+                </table>
+            </div>
         </div>
 
         <div id="tab-gateway" class="tab-pane">
@@ -396,9 +423,9 @@
             initMap();
         });
 
-        document.querySelectorAll('.filter-btn').forEach(btn => {
+        document.querySelectorAll('.mode-filters .filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.mode-filters .filter-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentMode = btn.getAttribute('data-mode');
                 loadData();
@@ -426,6 +453,21 @@
         document.getElementById('name-filter').addEventListener('change', (e) => {
             currentName = e.target.value;
             loadData();
+        });
+
+        // Gestione switch visualizzazione nodi
+        document.getElementById('view-cards-btn').addEventListener('click', () => {
+            document.getElementById('view-cards-btn').classList.add('active');
+            document.getElementById('view-table-btn').classList.remove('active');
+            document.getElementById('nodes-status-container').style.display = 'grid';
+            document.getElementById('nodes-table-container').style.display = 'none';
+        });
+
+        document.getElementById('view-table-btn').addEventListener('click', () => {
+            document.getElementById('view-table-btn').classList.add('active');
+            document.getElementById('view-cards-btn').classList.remove('active');
+            document.getElementById('nodes-status-container').style.display = 'none';
+            document.getElementById('nodes-table-container').style.display = 'block';
         });
 
         document.getElementById('country-filter').addEventListener('change', (e) => {
@@ -457,6 +499,23 @@
                 btn.classList.add('active');
                 const tabId = "tab-" + btn.dataset.tab;
                 document.getElementById(tabId).classList.add('active');
+
+                // Se passiamo a Live Nodes, resettiamo tutti i filtri su ALL
+                if (btn.dataset.tab === 'nodes') {
+                    document.querySelectorAll('.filters .filter-btn[data-mode]').forEach(b => b.classList.remove('active'));
+                    const defaultModeBtn = document.querySelector('.filters .filter-btn[data-mode="all"]');
+                    if (defaultModeBtn) defaultModeBtn.classList.add('active');
+                    currentMode = "all";
+
+                    document.getElementById('node-filter').value = "all";
+                    document.getElementById('tg-filter').value = "all";
+                    document.getElementById('name-filter').value = "all";
+                    currentNode = "all";
+                    currentTG = "all";
+                    currentName = "all";
+
+                    loadData();
+                }
 
                 // Disabilita filtri se siamo in Analytics & Map o Gateway
                 const isStats = btn.dataset.tab === 'stats';
@@ -553,6 +612,42 @@
                         </div>
                         <div class="node-timer" ${isTX ? 'data-start-ts="' + lastCall.start_ts + '"' : ''}>${displayDuration}</div>
                     </div>`;
+        }
+
+        // Genera l'HTML di una riga della tabella per Live Nodes
+        function buildNodeTableRowHtml(nodeName, lastCall, serverOffset) {
+            const isTX = lastCall.TIME === "";
+            let rowClass = isTX ? "active" : "";
+
+            let displayDuration = "";
+            if (isTX && lastCall.start_ts) {
+                const currentServerTime = (Date.now() / 1000) + serverOffset;
+                let diff = Math.floor(currentServerTime - lastCall.start_ts);
+                if (diff < 0) diff = 0;
+                displayDuration = diff + "s";
+            } else {
+                displayDuration = lastCall.TIME ? lastCall.TIME + "s" : "-";
+                if (displayDuration.includes("!")) displayDuration = displayDuration.replace("!", "") + "!";
+            }
+
+            let modeClass = lastCall.MODE ? ("badge mode-" + escapeHtml(lastCall.MODE).toLowerCase()) : "";
+            const statusBadge = `<span class="node-status-badge ${isTX ? 'status-tx' : 'status-idle'}" style="width: 100px; display: inline-block; text-align: center;">${isTX ? 'Transmitting' : 'Idle'}</span>`;
+            let berClass = "ber-cell " + getBerClass(lastCall.BER);
+
+            const startTsAttr = isTX ? ` data-start-ts="${lastCall.start_ts}"` : '';
+            
+            const extSuffix = (lastCall.MODE && lastCall.MODE.toUpperCase() === 'D-STAR' && lastCall.SOURCE_EXT) ? ` <span style="color: #14b8a6; font-size: 11px;">${escapeHtml(lastCall.SOURCE_EXT)}</span>` : '';
+
+            return `<tr class="${rowClass}"${startTsAttr}>
+                <td data-label="NODE" style="font-weight: 600;">${escapeHtml(nodeName)}</td>
+                <td data-label="STATUS">${statusBadge}</td>
+                <td data-label="OPERATOR" class="id-cell">${escapeHtml(lastCall.ID)}${extSuffix}</td>
+                <td data-label="NAME" class="name-cell">${escapeHtml(lastCall.NAME)}</td>
+                <td data-label="TARGET" class="tg">${escapeHtml(lastCall.TG)}</td>
+                <td data-label="MODE"><span class="${modeClass}">${escapeHtml(lastCall.MODE)}${lastCall.MODE.toUpperCase() === 'DMR' ? ' (TS ' + lastCall.SLOT + ')' : ''}</span></td>
+                <td data-label="BER" class="${berClass}">${escapeHtml(lastCall.BER)}</td>
+                <td data-label="DURATION" class="node-time-cell">${displayDuration}</td>
+            </tr>`;
         }
 
         // Genera l'HTML di una riga della tabella
@@ -671,7 +766,10 @@
 
                     data.forEach(call => {
                         const sourceMatch = currentSource === "all" || call.SOURCE_TYPE === currentSource;
-                        if (!sourceMatch) return;
+                        const modeMatch = currentMode === "all" || (call.MODE && call.MODE.toLowerCase() === currentMode);
+                        const tgMatch = currentTG === "all" || call.TG === currentTG;
+                        const nameMatch = currentName === "all" || call.NAME === currentName;
+                        if (!sourceMatch || !modeMatch || !tgMatch || !nameMatch) return;
                         
                         let nodeKey = (call.NODO || "N/A").toUpperCase();
                         if (call.MODE && call.MODE.toUpperCase() === 'DMR') {
@@ -686,13 +784,17 @@
 
                     const sortedNodes = Array.from(nodesMap.keys()).sort();
                     let nodesHtml = "";
+                    let nodesTableHtml = "";
                     sortedNodes.forEach(nodeKey => {
                         const call = nodesMap.get(nodeKey);
                         const nodeName = (call.NODO || "N/A").toUpperCase();
                         if (currentNode !== "all" && nodeName !== currentNode) return;
                         nodesHtml += buildNodeCardHtml(nodeName, call, lastServerOffset);
+                        nodesTableHtml += buildNodeTableRowHtml(nodeName, call, lastServerOffset);
                     });
                     nodesStatusContainer.innerHTML = nodesHtml;
+                    const nodesTableBody = document.getElementById("nodes-table-body");
+                    if (nodesTableBody) nodesTableBody.innerHTML = nodesTableHtml;
 
                     // Aggiorna tabella
                     const tbody = document.getElementById("table-body");
@@ -700,7 +802,7 @@
 
                     data.forEach(call => {
                         const sourceMatch = currentSource === "all" || call.SOURCE_TYPE === currentSource;
-                        const modeMatch = currentMode === "all" || call.MODE.toLowerCase() === currentMode;
+                        const modeMatch = currentMode === "all" || (call.MODE && call.MODE.toLowerCase() === currentMode);
                         const nodeMatch = currentNode === "all" || (call.NODO && call.NODO.toUpperCase() === currentNode);
                         const tgMatch = currentTG === "all" || call.TG === currentTG;
                         const nameMatch = currentName === "all" || call.NAME === currentName;
@@ -754,8 +856,17 @@
                 el.textContent = diff + "s";
             });
 
-            // Aggiorna timer nelle righe attive della tabella
-            document.querySelectorAll('tr.active[data-start-ts]').forEach(row => {
+            // Aggiorna timer nelle righe della tabella nodi
+            document.querySelectorAll('#nodes-table-body tr.active[data-start-ts]').forEach(row => {
+                const startTs = parseFloat(row.dataset.startTs);
+                let diff = Math.floor(now - startTs);
+                if (diff < 0) diff = 0;
+                const timeCell = row.querySelector('.node-time-cell');
+                if (timeCell) timeCell.textContent = diff + "s";
+            });
+
+            // Aggiorna timer nelle righe attive della tabella principale
+            document.querySelectorAll('#table-body tr.active[data-start-ts]').forEach(row => {
                 const startTs = parseFloat(row.dataset.startTs);
                 let diff = Math.floor(now - startTs);
                 if (diff < 0) diff = 0;
