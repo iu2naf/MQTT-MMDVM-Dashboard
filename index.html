@@ -59,7 +59,7 @@
 
             <div class="filters dropdown-filters">
                 <select id="node-filter">
-                    <option value="all">NODO: ALL</option>
+                    <option value="all">NODE: ALL</option>
                 </select>
                 <select id="tg-filter">
                     <option value="all">TG: ALL</option>
@@ -122,9 +122,9 @@
 
         <div id="tab-stats" class="tab-pane">
             <div class="country-filter-container">
-                <span class="country-filter-label">Filtra per Paese</span>
+                <span class="country-filter-label">Country Filter</span>
                 <select id="country-filter">
-                    <option value="all">TUTTI I PAESI</option>
+                    <option value="all">ALL COUNTRY</option>
                 </select>
             </div>
             
@@ -658,10 +658,10 @@
                     if (call.COUNTRY) countries.add(call.COUNTRY);
                 });
 
-                updateDropdown('node-filter', nodes, currentNode, 'NODO');
+                updateDropdown('node-filter', nodes, currentNode, 'NODE');
                 updateDropdown('tg-filter', tgs, currentTG, 'TG');
                 updateDropdown('name-filter', names, currentName, 'NAME');
-                updateDropdown('country-filter', countries, currentCountry, 'PAESE');
+                updateDropdown('country-filter', countries, currentCountry, 'COUNTRY');
 
                 // Aggiorna DOM solo se i dati sono cambiati
                 if (dataChanged) {
