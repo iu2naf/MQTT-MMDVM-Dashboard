@@ -551,6 +551,9 @@ tbody tr:last-child td {
     gap: 24px;
     margin-bottom: 30px;
     justify-content: center;
+    max-width: 1352px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .node-card {
