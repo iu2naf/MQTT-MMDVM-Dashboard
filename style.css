@@ -195,7 +195,6 @@ main {
 
 .tab-pane.active {
     display: block;
-    animation: fadeIn 0.4s ease-out;
 }
 
 .filter-btn {
@@ -442,24 +441,28 @@ tbody tr:last-child td {
     border: 1px solid rgba(6, 182, 212, 0.2);
 }
 
-.active {
-    background-color: var(--active-bg);
-    animation: activePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+tr.active {
+    background-color: rgba(16, 185, 129, 0.15);
+    animation: activePulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.active td {
+tr.active td {
     border-bottom-color: transparent;
+}
+
+tr.active td:first-child {
+    box-shadow: inset 4px 0 0 0 var(--rf-color);
 }
 
 @keyframes activePulse {
 
     0%,
     100% {
-        background-color: rgba(16, 185, 129, 0.05);
+        background-color: rgba(16, 185, 129, 0.1);
     }
 
     50% {
-        background-color: rgba(16, 185, 129, 0.2);
+        background-color: rgba(16, 185, 129, 0.3);
     }
 }
 

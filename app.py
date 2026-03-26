@@ -22,7 +22,7 @@ def data():
     except Exception:
         version_str = "1.0.1 β" # Fallback
 
-    current_calls = mqtt_parser.get_recent_calls(limit=40)
+    current_calls = mqtt_parser.get_recent_calls(limit=200)
     return jsonify({"server_time": time.time(), "version": version_str, "calls": current_calls})
 
 
