@@ -353,16 +353,7 @@ tbody tr {
     transition: background-color 0.3s ease;
 }
 
-/* Animazione solo per le nuove chiamate (se implementato logicamente)  */
-/* Animazione solo per le nuove chiamate */
-tbody tr.new-row-highlight {
-    animation: newRowPulse 3s ease-out forwards;
-}
-
-@keyframes newRowPulse {
-    0% { background-color: rgba(16, 185, 129, 0.3); }
-    100% { background-color: transparent; }
-}
+/* Animazioni di flash del DOM rimosse per evitare sfarfallii su Firefox/Edge */
 
 @keyframes fadeIn {
     from {

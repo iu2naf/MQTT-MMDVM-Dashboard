@@ -507,6 +507,11 @@
                     if (defaultModeBtn) defaultModeBtn.classList.add('active');
                     currentMode = "all";
 
+                    document.querySelectorAll('.source-tab-btn').forEach(b => b.classList.remove('active'));
+                    const defaultSourceBtn = document.querySelector('.source-tab-btn[data-source="all"]');
+                    if (defaultSourceBtn) defaultSourceBtn.classList.add('active');
+                    currentSource = "all";
+
                     document.getElementById('node-filter').value = "all";
                     document.getElementById('tg-filter').value = "all";
                     document.getElementById('name-filter').value = "all";
@@ -655,8 +660,6 @@
             const isTX = call.TIME === "";
             let rowClass = "";
             if (isTX) rowClass += " active";
-            let isNew = (Date.now() / 1000) - call.start_ts < 3;
-            if (isNew) rowClass += " new-row-highlight";
 
             let fromClass = call.FROM === "RF" ? "badge rf" : "badge netw";
             let slotClass = call.SLOT === "1" ? "badge slot1" : "badge slot2";

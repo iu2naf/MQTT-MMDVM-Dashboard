@@ -364,10 +364,12 @@ def handle_call_start(topic, data, mode, slot, now_ts):
         if len(calls) > 40: calls.pop(0)
     save_or_update_call(new_call)
 
-def handle_call_end_or_update(mode, slot, data, now_ts, action):
+def handle_call_end_or_update(topic, mode, slot, data, now_ts, action):
+    topic_parts = topic.split('/')
+    node_name = topic_parts[1] if len(topic_parts) >= 2 else "N/A"
     with calls_lock:
         for c in reversed(calls):
-            if c["MODE"] == mode and c["TIME"] == "" and (mode != "DMR" or c["SLOT"] == slot):
+            if c["MODE"] == mode and c["TIME"] == "" and c["NODO"] == node_name and (mode != "DMR" or c["SLOT"] == slot):
                 if action in ["end", "lost", "watchdog", "timeout"]:
                     json_dur = data.get("duration")
                     try:
@@ -396,7 +398,7 @@ def on_message(client, userdata, msg):
         elif action == "start":
             handle_call_start(msg.topic, data, mode, slot, now_ts)
         else:
-            handle_call_end_or_update(mode, slot, data, now_ts, action)
+            handle_call_end_or_update(msg.topic, mode, slot, data, now_ts, action)
     except Exception as e:
         print(f"Errore parsing: {e}")
 def get_gateway_status():
