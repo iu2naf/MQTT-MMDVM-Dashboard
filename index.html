@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
+
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -43,12 +43,6 @@
                 <button class="tab-btn" data-tab="nodes">Live Nodes</button>
                 <button class="tab-btn" data-tab="gateway">Gateway Status</button>
                 <button class="tab-btn" data-tab="stats">Analytics & Map</button>
-            </div>
-            <div class="nav-divider"></div>
-            <div class="nav-group source-group">
-                <button class="source-tab-btn active" data-source="all">ALL SOURCES</button>
-                <button class="source-tab-btn" data-source="MMDVM">MMDVM</button>
-                <button class="source-tab-btn" data-source="GATEWAY">GATEWAY</button>
             </div>
         </div>
 
@@ -111,16 +105,33 @@
         <div id="tab-nodes" class="tab-pane">
             <div class="monitor-header"
                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h3 style="margin: 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
+                <h3
+                    style="margin: 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
                     Live Nodes Monitor
                 </h3>
                 <div class="view-toggle" style="display: flex; gap: 8px;">
-                    <button id="view-cards-btn" class="filter-btn" style="display: flex; align-items: center; gap: 6px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <button id="view-cards-btn" class="filter-btn"
+                        style="display: flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
                         Cards
                     </button>
-                    <button id="view-table-btn" class="filter-btn active" style="display: flex; align-items: center; gap: 6px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <button id="view-table-btn" class="filter-btn active"
+                        style="display: flex; align-items: center; gap: 6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6"></line>
+                            <line x1="8" y1="12" x2="21" y2="12"></line>
+                            <line x1="8" y1="18" x2="21" y2="18"></line>
+                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        </svg>
                         Table
                     </button>
                 </div>
@@ -146,7 +157,8 @@
         </div>
 
         <div id="tab-gateway" class="tab-pane">
-            <h3 style="margin: 0 0 20px 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
+            <h3
+                style="margin: 0 0 20px 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
                 Gateway Link Status</h3>
             <div id="gateway-grid" class="gateway-grid"></div>
             <div id="gateway-log" class="gateway-log"></div>
@@ -159,7 +171,7 @@
                     <option value="all">ALL COUNTRY</option>
                 </select>
             </div>
-            
+
             <div class="map-wrapper">
                 <div id="map"></div>
             </div>
@@ -194,7 +206,6 @@
         }
 
         let currentMode = "all";
-        let currentSource = "all";
         let currentNode = "all";
         let currentTG = "all";
         let currentName = "all";
@@ -264,14 +275,14 @@
         };
 
         function initMap() {
-            map = L.map('map', { 
+            map = L.map('map', {
                 zoomControl: true,
                 dragging: true,
                 touchZoom: true,
                 doubleClickZoom: true,
                 scrollWheelZoom: true
             }).setView([42, 12], 4);
-            
+
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
@@ -364,7 +375,7 @@
         }
 
         // Funzione helper per jitter deterministico basato su ID
-        Math.seededRandom = function(seed) {
+        Math.seededRandom = function (seed) {
             let hash = 0;
             for (let i = 0; i < seed.length; i++) {
                 hash = ((hash << 5) - hash) + seed.charCodeAt(i);
@@ -436,14 +447,6 @@
             });
         });
 
-        document.querySelectorAll('.source-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.source-tab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentSource = btn.getAttribute('data-source');
-                loadData();
-            });
-        });
 
         // Event listeners per le nuove dropdown
         document.getElementById('node-filter').addEventListener('change', (e) => {
@@ -511,10 +514,7 @@
                     if (defaultModeBtn) defaultModeBtn.classList.add('active');
                     currentMode = "all";
 
-                    document.querySelectorAll('.source-tab-btn').forEach(b => b.classList.remove('active'));
-                    const defaultSourceBtn = document.querySelector('.source-tab-btn[data-source="all"]');
-                    if (defaultSourceBtn) defaultSourceBtn.classList.add('active');
-                    currentSource = "all";
+                    currentMode = "all";
 
                     document.getElementById('node-filter').value = "all";
                     document.getElementById('tg-filter').value = "all";
@@ -537,16 +537,6 @@
                     s.classList.toggle('disabled', disableFilters);
                     s.disabled = disableFilters;
                 });
-                // Gestione visibilità selettore sorgenti (ora in nav-bar)
-                const sourceGroup = document.querySelector('.source-group');
-                const navDivider = document.querySelector('.nav-divider');
-                if (sourceGroup) {
-                    sourceGroup.style.opacity = disableFilters ? '0.3' : '1';
-                    sourceGroup.style.pointerEvents = disableFilters ? 'none' : 'auto';
-                }
-                if (navDivider) {
-                    navDivider.style.opacity = disableFilters ? '0.3' : '1';
-                }
 
                 if (isStats && map) {
                     setTimeout(() => map.invalidateSize(), 100);
@@ -592,13 +582,32 @@
                 if (displayDuration.includes("!")) displayDuration = displayDuration.replace("!", "") + "!";
             }
 
+            // Compute status: Transmitting -> MODE (10s) -> Idle
+            let statusText, statusClass, endTs = 0;
+            if (isTX) {
+                statusText = 'Transmitting';
+                statusClass = 'status-tx';
+            } else {
+                const durStr = (lastCall.TIME || '0').toString().replace('!', '');
+                const dur = parseFloat(durStr) || 0;
+                endTs = (lastCall.start_ts || 0) + dur;
+                const currentServerTime = (Date.now() / 1000) + serverOffset;
+                if (!lastCall.is_idle && (currentServerTime - endTs) < 10) {
+                    statusText = escapeHtml(lastCall.MODE || 'Idle');
+                    statusClass = 'status-mode';
+                } else {
+                    statusText = 'Idle';
+                    statusClass = 'status-idle';
+                }
+            }
+
             return `<div class="node-card ${isTX ? 'tx' : ''}">
                         <div class="node-header">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span class="node-name">${escapeHtml(nodeName)}</span>
                                 <span class="badge ${lastCall.FROM === 'RF' ? 'rf' : 'netw'}" style="font-size: 10px; padding: 2px 6px;">${escapeHtml(lastCall.FROM)}</span>
                             </div>
-                            <span class="node-status-badge ${isTX ? 'status-tx' : 'status-idle'}">${isTX ? 'Transmitting' : 'Idle'}</span>
+                            <span class="node-status-badge ${statusClass}" data-end-ts="${endTs || ''}" data-mode="${escapeHtml(lastCall.MODE || '')}">${statusText}</span>
                         </div>
                         <div class="node-body">
                             <div class="node-info-row">
@@ -643,12 +652,32 @@
             }
 
             let modeClass = lastCall.MODE ? ("badge mode-" + escapeHtml(lastCall.MODE).toLowerCase()) : "";
-            const statusBadge = `<span class="node-status-badge ${isTX ? 'status-tx' : 'status-idle'}" style="width: 100px; display: inline-block; text-align: center;">${isTX ? 'Transmitting' : 'Idle'}</span>`;
+
+            // Compute status: Transmitting -> MODE (10s) -> Idle
+            let statusText, statusClass, endTs = 0;
+            if (isTX) {
+                statusText = 'Transmitting';
+                statusClass = 'status-tx';
+            } else {
+                const durStr = (lastCall.TIME || '0').toString().replace('!', '');
+                const dur = parseFloat(durStr) || 0;
+                endTs = (lastCall.start_ts || 0) + dur;
+                const currentServerTime = (Date.now() / 1000) + serverOffset;
+                if (!lastCall.is_idle && (currentServerTime - endTs) < 10) {
+                    statusText = escapeHtml(lastCall.MODE || 'Idle');
+                    statusClass = 'status-mode';
+                } else {
+                    statusText = 'Idle';
+                    statusClass = 'status-idle';
+                }
+            }
+
+            const statusBadge = `<span class="node-status-badge ${statusClass}" style="width: 100px; display: inline-block; text-align: center;" data-end-ts="${endTs || ''}" data-mode="${escapeHtml(lastCall.MODE || '')}">${statusText}</span>`;
             const fromBadge = `<span class="badge ${lastCall.FROM === 'RF' ? 'rf' : 'netw'}" style="font-size: 10px; padding: 2px 6px; margin-left: 6px;">${escapeHtml(lastCall.FROM)}</span>`;
             let berClass = "ber-cell " + getBerClass(lastCall.BER);
 
             const startTsAttr = isTX ? ` data-start-ts="${lastCall.start_ts}"` : '';
-            
+
             const extSuffix = (lastCall.MODE && lastCall.MODE.toUpperCase() === 'D-STAR' && lastCall.SOURCE_EXT) ? ` <span style="color: #14b8a6; font-size: 11px;">${escapeHtml(lastCall.SOURCE_EXT)}</span>` : '';
 
             return `<tr class="${rowClass}"${startTsAttr}>
@@ -748,7 +777,7 @@
                 }
 
                 // Crea uno snapshot per confronto (dati + filtri attivi)
-                const dataSnapshot = JSON.stringify(data) + `|${currentSource}|${currentMode}|${currentNode}|${currentTG}|${currentName}`;
+                const dataSnapshot = JSON.stringify(data) + `|${currentMode}|${currentNode}|${currentTG}|${currentName}`;
                 const dataChanged = dataSnapshot !== lastDataSnapshot;
                 lastDataSnapshot = dataSnapshot;
 
@@ -776,35 +805,46 @@
                     const nodesStatusContainer = document.getElementById("nodes-status-container");
                     const nodesMap = new Map();
 
+                    const nodesByNode = new Map(); // nodeName -> { calls: Map(slot -> call), limit: 1 }
+
                     data.forEach(call => {
-                        const sourceMatch = currentSource === "all" || call.SOURCE_TYPE === currentSource;
                         const modeMatch = currentMode === "all" || (call.MODE && call.MODE.toLowerCase() === currentMode);
                         const tgMatch = currentTG === "all" || call.TG === currentTG;
                         const nameMatch = currentName === "all" || call.NAME === currentName;
-                        if (!sourceMatch || !modeMatch || !tgMatch || !nameMatch) return;
-                        
-                        let nodeKey = (call.NODO || "N/A").toUpperCase();
-                        if (call.MODE && call.MODE.toUpperCase() === 'DMR') {
-                            const slot = call.SLOT || "1";
-                            nodeKey += `_TS${slot}`;
-                        }
-                        const fromType = call.FROM === "RF" ? "RF" : "NETW";
-                        nodeKey += `_${call.SOURCE_TYPE}_${fromType}`;
+                        if (!modeMatch || !tgMatch || !nameMatch) return;
 
-                        if (!nodesMap.has(nodeKey)) {
-                            nodesMap.set(nodeKey, call);
+                        const nodeName = (call.NODO || "N/A").toUpperCase();
+                        if (!nodesByNode.has(nodeName)) {
+                            const isDMR = (call.MODE && call.MODE.toUpperCase() === 'DMR');
+                            nodesByNode.set(nodeName, { calls: new Map(), limit: isDMR ? 2 : 1 });
+                        }
+
+                        const nodeInfo = nodesByNode.get(nodeName);
+                        if (nodeInfo.calls.size < nodeInfo.limit) {
+                            const isDMR = (call.MODE && call.MODE.toUpperCase() === 'DMR');
+                            const slotKey = isDMR ? (call.SLOT || "1") : "ALL";
+                            if (!nodeInfo.calls.has(slotKey)) {
+                                nodeInfo.calls.set(slotKey, call);
+                            }
                         }
                     });
 
-                    const sortedNodes = Array.from(nodesMap.keys()).sort();
+                    // Appiattiamo la mappa per l'ordinamento e la visualizzazione
+                    const finalNodes = [];
+                    Array.from(nodesByNode.keys()).sort().forEach(nodeName => {
+                        const nodeInfo = nodesByNode.get(nodeName);
+                        Array.from(nodeInfo.calls.keys()).sort().forEach(slotKey => {
+                            const call = nodeInfo.calls.get(slotKey);
+                            if (currentNode !== "all" && nodeName !== currentNode) return;
+                            finalNodes.push({ name: nodeName, call: call });
+                        });
+                    });
+
                     let nodesHtml = "";
                     let nodesTableHtml = "";
-                    sortedNodes.forEach(nodeKey => {
-                        const call = nodesMap.get(nodeKey);
-                        const nodeName = (call.NODO || "N/A").toUpperCase();
-                        if (currentNode !== "all" && nodeName !== currentNode) return;
-                        nodesHtml += buildNodeCardHtml(nodeName, call, lastServerOffset);
-                        nodesTableHtml += buildNodeTableRowHtml(nodeName, call, lastServerOffset);
+                    finalNodes.forEach(item => {
+                        nodesHtml += buildNodeCardHtml(item.name, item.call, lastServerOffset);
+                        nodesTableHtml += buildNodeTableRowHtml(item.name, item.call, lastServerOffset);
                     });
                     nodesStatusContainer.innerHTML = nodesHtml;
                     const nodesTableBody = document.getElementById("nodes-table-body");
@@ -815,13 +855,12 @@
                     let tableHtml = "";
 
                     data.forEach(call => {
-                        const sourceMatch = currentSource === "all" || call.SOURCE_TYPE === currentSource;
                         const modeMatch = currentMode === "all" || (call.MODE && call.MODE.toLowerCase() === currentMode);
                         const nodeMatch = currentNode === "all" || (call.NODO && call.NODO.toUpperCase() === currentNode);
                         const tgMatch = currentTG === "all" || call.TG === currentTG;
                         const nameMatch = currentName === "all" || call.NAME === currentName;
 
-                        if (sourceMatch && modeMatch && nodeMatch && tgMatch && nameMatch) {
+                        if (modeMatch && nodeMatch && tgMatch && nameMatch) {
                             tableHtml += buildRowHtml(call, lastServerOffset);
                         }
                     });
@@ -887,6 +926,17 @@
                 const timeCell = row.querySelector('.time-cell');
                 if (timeCell) timeCell.textContent = diff + "s";
             });
+
+            // Transizione status badge: MODE -> Idle dopo 10 secondi dalla fine TX
+            document.querySelectorAll('.node-status-badge[data-end-ts]').forEach(el => {
+                const endTs = parseFloat(el.dataset.endTs);
+                if (!endTs || isNaN(endTs)) return;
+                if ((now - endTs) >= 30 && !el.classList.contains('status-idle')) {
+                    el.textContent = 'Idle';
+                    el.classList.remove('status-mode', 'status-tx');
+                    el.classList.add('status-idle');
+                }
+            });
         }
 
         // Gestione Gateway Status
@@ -897,7 +947,7 @@
                 const res = await fetch('/gateway_status');
                 const response = await res.json();
                 const gateways = response.gateways || [];
-                
+
                 const dataSnapshot = JSON.stringify(gateways);
                 if (dataSnapshot === lastGatewayData) return;
                 lastGatewayData = dataSnapshot;
@@ -922,24 +972,24 @@
                 sortedGateways.forEach(gw => {
                     const typeClass = gw.type.toLowerCase();
                     const actionClass = gw.action || 'unknown';
-                    const statusClass = actionClass === 'linked' ? 'linked' : 
-                                       actionClass === 'linking' ? 'linking' :
-                                       actionClass === 'online' ? 'online' : 'unlinked';
-                    
+                    const statusClass = actionClass === 'linked' ? 'linked' :
+                        actionClass === 'linking' ? 'linking' :
+                            actionClass === 'online' ? 'online' : 'unlinked';
+
                     const actionLabel = gw.action === 'linking' ? 'Linking...' :
-                                       gw.action === 'linked' ? 'Linked' :
-                                       gw.action === 'failed' ? 'Failed' :
-                                       gw.action === 'online' ? 'Online' : 'Disconnected';
-                    
+                        gw.action === 'linked' ? 'Linked' :
+                            gw.action === 'failed' ? 'Failed' :
+                                gw.action === 'online' ? 'Online' : 'Disconnected';
+
                     const targetLabel = gw.talkgroup || gw.repeater || '-';
                     const reasonLabel = gw.reason || '-';
-                    
+
                     let timestampLabel = '-';
                     if (gw.timestamp) {
                         try {
                             const ts = new Date(gw.timestamp);
                             timestampLabel = ts.toLocaleString('it-IT');
-                        } catch(e) {
+                        } catch (e) {
                             timestampLabel = gw.timestamp;
                         }
                     }
@@ -983,13 +1033,13 @@
                         try {
                             const ts = new Date(gw.timestamp);
                             tsLabel = ts.toLocaleString('it-IT');
-                        } catch(e) {
+                        } catch (e) {
                             tsLabel = gw.timestamp;
                         }
                         const actionClass = gw.action === 'linked' ? 'linked' :
-                                           gw.action === 'linking' ? 'linking' : 'unlinked';
+                            gw.action === 'linking' ? 'linking' : 'unlinked';
                         const targetLabel = gw.talkgroup || gw.repeater || gw.reason || '-';
-                        
+
                         logHtml += `
                             <div class="gateway-log-entry">
                                 <span class="gateway-log-time">${escapeHtml(tsLabel)}</span>
