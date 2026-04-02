@@ -107,7 +107,9 @@ def init_db():
     # Indici per velocità
     c.execute('CREATE INDEX IF NOT EXISTS idx_users_id ON users(radio_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_nxdn_id ON nxdn_users(radio_id)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_users_call ON users(callsign)')
+    # Pulizia automatica cronologia all'avvio (come richiesto per mmdvm_web.service)
+    c.execute("DELETE FROM calls")
+    print("DEBUG: Cronologia chiamate svuotata all'avvio.")
     
     conn.commit()
     conn.close()
@@ -398,7 +400,7 @@ def handle_call_end_or_update(topic, mode, slot, data, now_ts, action):
         for c in reversed(calls):
             # Se è un pacchetto 'idle', chiudiamo tutto su quello slot.
             # Permettiamo il match anche se TIME è già impostato (es. arrivato un 'end' poco prima)
-            is_idle_pkt = (data.get("mode") == "idle")
+            is_idle_pkt = (data.get("mode") == "idle" and (action is None or action == "idle"))
             
             # Per i pacchetti 'end/lost/etc' serve che la chiamata sia ancora attiva (TIME == "")
             # Per i pacchetti 'idle' vogliamo marcare l'ultima chiamata come idle anche se è appena finita
@@ -410,8 +412,9 @@ def handle_call_end_or_update(topic, mode, slot, data, now_ts, action):
                (mode != "DMR" or c["SLOT"] == slot):
                 
                 if is_idle_pkt:
-                    c["is_idle"] = 1
-                    if c["TIME"] == "":
+                    if c["TIME"] != "":
+                        c["is_idle"] = 1
+                    else:
                         c["TIME"] = round(now_ts - c["start_ts"], 1)
                     save_or_update_call(c)
                     found_any = True
