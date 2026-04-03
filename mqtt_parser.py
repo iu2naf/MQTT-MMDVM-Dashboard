@@ -359,12 +359,20 @@ def handle_call_start(topic, data, mode, slot, now_ts):
     
     src_from = (data.get("source") or data.get("from") or "NET").upper()
     with calls_lock:
-        # Deduplicazione relax: evita solo duplicati esatti (stesso utente, stesso nodo, stesso slot e stessa origine)
-        if any(c["id_raw"] == uid and c["TIME"] == "" and 
-               c["NODO"] == node_name and c["SLOT"] == slot and 
-               c["FROM"] == src_from and (now_ts - c["start_ts"]) < 2 
-               for c in calls):
-            return
+        # Se c'è già una chiamata attiva sullo STESSO nodo e slot, chiudiamola (es. passaggio RF->NET)
+        # tranne se è esattamente la stessa chiamata (stesso user, nodo, slot, sorgente) arrivata in meno di 2s (duplicato)
+        for c in reversed(calls):
+            if c["NODO"] == node_name and c["SLOT"] == slot and c["TIME"] == "":
+                # Se è un duplicato esatto dello stesso utente/sorgente, ignoriamo il nuovo avvio
+                if c["id_raw"] == uid and c["FROM"] == src_from and (now_ts - c["start_ts"]) < 2:
+                    return
+                
+                # Altrimenti, chiudiamo la vecchia sessione rimasta appesa prima di iniziare la nuova
+                c["TIME"] = round(now_ts - c["start_ts"], 1)
+                if c["TIME"] <= 0: c["TIME"] = 0.1
+                # is_idle rimane 0 perché sta iniziando subito un'altra chiamata
+                save_or_update_call(c)
+                # Non usciamo (break), potremmo avere flussi multipli rari, puliamoli tutti.
     
     callsign = src_call_raw.upper().strip()
     name, city, country = f"{radio_mode} User", "", ""
@@ -499,7 +507,7 @@ def on_message(client, userdata, msg):
 
         if mode in ["LINK", "STATUS"]:
             handle_link_status_message(msg.topic, data, mode, now_ts)
-        elif action == "start":
+        elif action in ["start", "late_entry"]:
             handle_call_start(msg.topic, data, mode, slot, now_ts)
         elif mode == "TEXT":
             # Aggiorna informazioni testuali della chiamata in corso
