@@ -35,7 +35,7 @@
         </svg>
         <div class="header-titles">
             <h1>MQTT MMDVM Dashboard</h1>
-            <h2>Multi Repeater traffic in real time</h2>
+            <h2>Real time Multi Repeater traffic</h2>
         </div>
     </header>
 
@@ -149,7 +149,7 @@
                             <th>OPERATOR</th>
                             <th>NAME</th>
                             <th>TARGET</th>
-                            <th>MODE</th>
+                            <th>LAST MODE</th>
                             <th>BER</th>
                             <th>DURATION</th>
                         </tr>
@@ -981,7 +981,7 @@
                         actionClass === 'linking' ? 'linking' :
                             actionClass === 'online' ? 'online' : 'unlinked';
 
-                    const actionLabel = gw.action === 'linking' ? 'Linking...' :
+                    const actionLabel = gw.action === 'linking' ? 'Active TG/NET' :
                         gw.action === 'linked' ? 'Linked' :
                             gw.action === 'failed' ? 'Failed' :
                                 gw.action === 'online' ? 'Online' : 'Disconnected';
