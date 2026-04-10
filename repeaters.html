@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IR3Q - Gateway Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .node-tabs {
+            display: flex; gap: 1rem; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 0.5rem;
+        }
+        .node-tabs::-webkit-scrollbar { height: 6px; }
+        .node-tabs::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .node-tabs::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+
+        .node-tab {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            display: flex; align-items: center; gap: 0.75rem;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .node-tab:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); transform: translateY(-1px); }
+        .node-tab.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            border-color: var(--accent);
+        }
+        .node-icon { font-size: 1.25rem; }
+
+        .connection-status {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: var(--card-bg);
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; transition: all 0.3s; }
+        .status-dot.active { background: #10b981; box-shadow: 0 0 10px #10b981; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        .container { max-width: 1600px; width: 100%; margin: 0 auto; padding: 2rem; }
+        .dashboard-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;}
+
+        
+        .stats-row { display: flex; gap: 1rem; }
+        .stat-pill { background: var(--card-bg); padding: 0.75rem 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); min-width: 130px; text-align: center; }
+        .stat-pill .value { font-size: 1.5rem; font-weight: 700; color: #06b6d4; display: block; }
+        .stat-pill .label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+
+        .node-content { display: none; animation: fadeIn 0.4s ease forwards; }
+        .node-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .gateway-section { margin-bottom: 1rem; }
+        .gateway-header {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 1rem; border-radius: 12px;
+            background: rgba(22, 28, 45, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer; user-select: none; transition: all 0.3s;
+        }
+        .gateway-header:hover { background: rgba(31, 41, 66, 0.8); }
+        .gateway-header h2 { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin: 0;}
+        .gateway-badge {
+            background: rgba(157, 78, 221, 0.15); color: #e0aaff;
+            padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+            border: 1px solid rgba(157, 78, 221, 0.3);
+        }
+        .toggle-icon { margin-left: auto; transition: transform 0.3s ease; font-size: 1.25rem; color: #718096; }
+        
+        .gateway-section.expanded .gateway-header { border-bottom-color: #00d4ff; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+        .gateway-section.expanded .toggle-icon { transform: rotate(180deg); color: #00d4ff; }
+        .gateway-section .topics-grid { display: none; padding: 1.5rem 0; animation: fadeIn 0.3s ease-out; }
+        .gateway-section.expanded .topics-grid { display: grid; }
+
+        .topics-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; width: 100%; }
+        
+        .topic-card {
+            background: rgba(22, 28, 45, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .topic-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+            background: linear-gradient(90deg, #00d4ff, #9d4edd);
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .topic-card:hover { transform: translateY(-5px); border-color: rgba(0, 212, 255, 0.3); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+        .topic-card:hover::before { opacity: 1; }
+
+        .topic-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+        .topic-title { font-size: 1.1rem; font-weight: 600; color: #fff; text-transform: none; }
+        .topic-time { font-size: 0.7rem; color: #718096; font-family: 'JetBrains Mono', monospace; }
+
+        .data-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; flex-grow: 1;}
+        
+        .data-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .data-label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .data-value { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: #00d4ff; font-weight: 500; text-align: right; word-break: break-all; }
+        
+        .data-item.full-width { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+        .data-item.full-width .data-value { text-align: left; }
+
+        .badge { padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;display: inline-block; }
+        .badge.on { background: rgba(0, 230, 118, 0.15); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3); }
+        .badge.off { background: rgba(255, 61, 0, 0.15); color: #ff3d00; border: 1px solid rgba(255, 61, 0, 0.3); }
+
+        .spinner {
+            width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%; border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+            margin: 5rem auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; gap: 1rem; padding: 1rem; }
+            .dashboard-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+            .stats-row { width: 100%; justify-content: space-between; }
+            .stat-pill { flex: 1; }
+        }
+
+        .empty-state { text-align: center; padding: 4rem 2rem; color: rgba(148, 163, 184, 0.7); }
+        .empty-state blockquote { margin-top: 1rem; font-style: italic; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+            stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+            <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+            <circle cx="12" cy="12" r="2" />
+            <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+            <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1" />
+            <path d="M9 22v-4h6v4" />
+            <path d="m11.6 16.8-1.5-6" />
+            <path d="m12.4 16.8 1.5-6" />
+        </svg>
+        <div class="header-titles">
+            <h1>MQTT MMDVM Dashboard</h1>
+            <h2>Multi Repeater traffic in real time</h2>
+        </div>
+        <div style="position: absolute; right: 20px; display: flex; align-items: center; gap: 1rem;">
+            <a href="/" class="filter-btn" style="text-decoration: none; display: flex; align-items: center; padding: 8px 16px;">🔙 Back to Dashboard</a>
+            <div class="connection-status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">In attesa...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <main style="padding: 0; border: none; max-width: none; background: transparent;">
+        <div class="dashboard-header" style="justify-content: flex-end; margin-bottom: 2rem;">
+            <div class="stats-row">
+                <div class="stat-pill">
+                    <span class="value" id="statNodes">0</span>
+                    <span class="label">Nodi Attivi</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="value" id="statTopics">0</span>
+                    <span class="label">Topics Loggati</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="node-tabs" id="nodeTabs"></div>
+        <div id="dashboardContent">
+            <div class="spinner" id="loadingSpinner"></div>
+        </div>
+    </div>
+
+    <script>
+        const ALLOWED_FIELDS = [
+            'Callsign', 'Id', 'RXFrequency', 'TXFrequency', 'Power', 
+            'Latitude', 'Longitude', 'Height', 'Location', 'Description', 
+            'Enable', 'Enabled', 'Name', 'Static', 'Startup', 
+            'Reconnect', 'Revert'
+        ];
+
+        let activeNodeId = null;
+        let currentNodesHash = '';
+        let currentStructureHash = '';
+        const expandedSections = new Set();
+        
+        function toggleSection(sectionId) {
+            const el = document.getElementById(sectionId);
+            if (!el) return;
+            if (el.classList.contains('expanded')) {
+                el.classList.remove('expanded');
+                expandedSections.delete(sectionId);
+            } else {
+                el.classList.add('expanded');
+                expandedSections.add(sectionId);
+            }
+        }
+
+        function safeId(...parts) {
+            return 'id_' + btoa(unescape(encodeURIComponent(parts.join('|')))).replace(/[\=\+\/]/g, '');
+        }
+
+        function formatValue(key, value) {
+            const lowerKey = key.toLowerCase();
+            
+            if (value === '1' || value === 1 || value === true || (typeof value === 'string' && value.toLowerCase() === 'true')) {
+                if (lowerKey.includes('enable')) return '<span class="badge on">ABILITATA</span>';
+                return '<span class="badge on">ON</span>';
+            }
+            if (value === '0' || value === 0 || value === false || (typeof value === 'string' && value.toLowerCase() === 'false')) {
+                if (lowerKey.includes('enable')) return '<span class="badge off">DISABILITATA</span>';
+                return '<span class="badge off">OFF</span>';
+            }
+            if (key === 'RXFrequency' || key === 'TXFrequency') {
+                return (parseInt(value) / 1000000).toFixed(4) + ' MHz';
+            }
+            if (lowerKey.includes('power')) return value + 'W';
+            if (typeof value === 'object') return JSON.stringify(value);
+            return value;
+        }
+
+        function formatLabel(key) {
+            const labels = {
+                'RXFrequency': 'Freq. Ricezione',
+                'TXFrequency': 'Freq. Trasmissione',
+                'Power': 'Potenza TX',
+                'Callsign': 'Nominativo',
+                'Id': 'DMR ID',
+                'Location': 'Posizione',
+                'Description': 'Descrizione',
+                'Enable': 'Stato',
+                'Enabled': 'Stato',
+                'Name': 'Nome Rete',
+                'Height': 'Altezza',
+                'Reconnect': 'Riconnetti',
+                'Revert': 'Revert',
+                'Startup': 'Server Avvio',
+                'Static': 'Static'
+            };
+            return labels[key] || key.replace(/([A-Z])/g, ' $1').trim();
+        }
+
+        function updateDashboard(data) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const messages = data.messages || {};
+            const lastUpdates = data.last_update || {};
+            
+            const msgKeys = Object.keys(messages);
+            if (msgKeys.length > 0) {
+                statusDot.classList.add('active');
+                statusText.innerHTML = 'Connesso &bull; Real-time';
+                const spin = document.getElementById('loadingSpinner');
+                if(spin) spin.style.display = 'none';
+            } else {
+                statusDot.classList.remove('active');
+                statusText.textContent = 'Nessun dato';
+                return;
+            }
+
+            const nodes = {};
+            let totalTopics = 0;
+
+            msgKeys.forEach(topic => {
+                const parts = topic.split('/');
+                if (parts.length < 3) return;
+                const nodeId = parts[1];
+                const gateway = parts[2];
+                const subTopic = parts.length > 3 ? parts.slice(3).join('/') : 'General';
+                
+                if (!nodes[nodeId]) nodes[nodeId] = {};
+                if (!nodes[nodeId][gateway]) nodes[nodeId][gateway] = {};
+                
+                nodes[nodeId][gateway][subTopic] = { 
+                    payload: messages[topic], 
+                    timestamp: lastUpdates[topic] 
+                };
+                totalTopics++;
+            });
+
+            document.getElementById('statNodes').textContent = Object.keys(nodes).length;
+            document.getElementById('statTopics').textContent = totalTopics;
+
+            renderTabs(Object.keys(nodes));
+            renderContent(nodes);
+        }
+
+        function renderTabs(nodeIds) {
+            const hash = nodeIds.sort().join(',');
+            if (hash === currentNodesHash) return;
+            currentNodesHash = hash;
+
+            const tabsContainer = document.getElementById('nodeTabs');
+            if (!activeNodeId && nodeIds.length > 0) activeNodeId = nodeIds[0];
+            
+            let html = '';
+            nodeIds.forEach(id => {
+                const isActive = id === activeNodeId ? 'active' : '';
+                html += `
+                    <div class="node-tab ${isActive}" onclick="setActiveNode('${id}')" data-id="${id}">
+                        <span class="node-icon">🌍</span>
+                        <span>Nodo: ${id.toUpperCase()}</span>
+                    </div>
+                `;
+            });
+            tabsContainer.innerHTML = html;
+        }
+
+        function setActiveNode(id) {
+            activeNodeId = id;
+            document.querySelectorAll('.node-tab').forEach(tab => {
+                if(tab.getAttribute('data-id') === id) tab.classList.add('active');
+                else tab.classList.remove('active');
+            });
+            document.querySelectorAll('.node-content').forEach(content => {
+                if(content.id === `node-${id}`) content.classList.add('active');
+                else content.classList.remove('active');
+            });
+        }
+
+        function renderContent(nodes) {
+            const container = document.getElementById('dashboardContent');
+            
+            // Build a structure descriptor to see if we need a full DOM rebuild
+            const structure = {};
+            for (const [nodeId, gateways] of Object.entries(nodes)) {
+                structure[nodeId] = {};
+                for (const [gatewayName, topics] of Object.entries(gateways)) {
+                    structure[nodeId][gatewayName] = {};
+                    for (const [topicName, data] of Object.entries(topics)) {
+                        if (typeof data.payload === 'object' && data.payload !== null) {
+                            structure[nodeId][gatewayName][topicName] = Object.keys(data.payload)
+                                .filter(k => ALLOWED_FIELDS.includes(k)).sort();
+                        } else {
+                            structure[nodeId][gatewayName][topicName] = 'raw';
+                        }
+                    }
+                }
+            }
+            
+            const newHash = JSON.stringify(structure);
+            
+            if (newHash === currentStructureHash) {
+                // Sructure is unchanged, perform targeted updates to prevent page flicker
+                Object.entries(nodes).forEach(([nodeId, gateways]) => {
+                    Object.entries(gateways).forEach(([gatewayName, topics]) => {
+                        Object.entries(topics).forEach(([topicName, data]) => {
+                            const dateObj = new Date(data.timestamp * 1000);
+                            const dateString = data.timestamp ? dateObj.toLocaleTimeString() : '--:--';
+                            
+                            const timeEl = document.getElementById(safeId(nodeId, gatewayName, topicName, 'time'));
+                            if (timeEl) timeEl.textContent = '⌚ ' + dateString;
+
+                            if (typeof data.payload === 'object' && data.payload !== null) {
+                                Object.entries(data.payload).forEach(([key, val]) => {
+                                    if (!ALLOWED_FIELDS.includes(key)) return;
+                                    const valEl = document.getElementById(safeId(nodeId, gatewayName, topicName, key));
+                                    if (valEl) valEl.innerHTML = formatValue(key, val);
+                                });
+                            } else {
+                                const valEl = document.getElementById(safeId(nodeId, gatewayName, topicName, 'raw'));
+                                if (valEl) valEl.innerHTML = data.payload;
+                            }
+                        });
+                    });
+                });
+                return;
+            }
+            
+            // Rebuild DOM
+            currentStructureHash = newHash;
+            let html = '';
+
+            Object.entries(nodes).forEach(([nodeId, gateways]) => {
+                const isActive = nodeId === activeNodeId ? 'active' : '';
+                html += `<div class="node-content ${isActive}" id="node-${nodeId}">`;
+
+                Object.entries(gateways).forEach(([gatewayName, topics]) => {
+                    const sectionId = safeId('gw', nodeId, gatewayName);
+                    const isExpanded = expandedSections.has(sectionId) ? 'expanded' : '';
+
+                    html += `
+                        <div class="gateway-section ${isExpanded}" id="${sectionId}">
+                            <div class="gateway-header" onclick="toggleSection('${sectionId}')">
+                                <h2>${gatewayName.split(/(?=[A-Z])/).join(' ')}</h2>
+                                <span class="gateway-badge">${Object.keys(topics).length} Topics / Protocolli</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="topics-grid">
+                    `;
+
+                    Object.entries(topics).forEach(([topicName, data]) => {
+                        const payload = data.payload;
+                        const dateObj = new Date(data.timestamp * 1000);
+                        const dateString = data.timestamp ? dateObj.toLocaleTimeString() : '--:--';
+                        
+                        html += `
+                            <div class="topic-card">
+                                <div class="topic-card-header">
+                                    <div class="topic-title">${topicName}</div>
+                                    <div class="topic-time" id="${safeId(nodeId, gatewayName, topicName, 'time')}">⌚ ${dateString}</div>
+                                </div>
+                                <div class="data-grid">
+                        `;
+
+                        if (typeof payload === 'object' && payload !== null) {
+                            Object.entries(payload).forEach(([key, val]) => {
+                                if (!ALLOWED_FIELDS.includes(key)) return;
+                                const isLong = typeof val === 'string' && val.length > 20;
+                                html += `
+                                    <div class="data-item ${isLong ? 'full-width' : ''}">
+                                        <span class="data-label">${formatLabel(key)}</span>
+                                        <span class="data-value" id="${safeId(nodeId, gatewayName, topicName, key)}">${formatValue(key, val)}</span>
+                                    </div>
+                                `;
+                            });
+                        } else {
+                            html += `
+                                <div class="data-item full-width">
+                                    <span class="data-label">Raw Payload</span>
+                                    <span class="data-value" id="${safeId(nodeId, gatewayName, topicName, 'raw')}">${payload}</span>
+                                </div>
+                            `;
+                        }
+
+                        html += `
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            });
+
+            if (Object.keys(nodes).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h2>In attesa di dati telemetrici...</h2>
+                        <!-- <blockquote>Assicurati che i dispositivi stiano pubblicando all'interno dell'albero "dati/#".</blockquote> -->
+                    </div>
+                `;
+            } else {
+                container.innerHTML = html;
+            }
+        }
+
+        async function fetchLoop() {
+            try {
+                const res = await fetch('/api/repeaters');
+                const data = await res.json();
+                updateDashboard(data);
+            } catch (err) {
+                document.getElementById('statusDot').classList.remove('active');
+                document.getElementById('statusText').textContent = 'Errore Connessione';
+            }
+            setTimeout(fetchLoop, 3000);
+        }
+
+        fetchLoop();
+    </script>
+    </main>
+</body>
+</html>
