@@ -172,7 +172,6 @@ def export_repeaters():
     
     si = StringIO()
     cw = csv.writer(si)
-    # Header potenziato con campi specifici
     cw.writerow(['Node', 'Gateway', 'Topic', 'Callsign', 'ID', 'RX Frequency', 'TX Frequency', 'Power', 'Location', 'Last Seen'])
     
     with repeaters_messages_lock:
@@ -224,9 +223,11 @@ def watchdog_thread():
     # TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
     
     while True:
-        time.sleep(3600)  # Check every hour
+        # Check telemetry ogni ora
+        time.sleep(3600)
         current_time = time.time()
-        timeout_seconds = 3 * 3600 # 3 hours
+        # Check Node ogni 3 ore
+        timeout_seconds = 3 * 3600
         
         with repeaters_messages_lock:
             for topic, last_ts in repeaters_last_update.items():
@@ -235,7 +236,7 @@ def watchdog_thread():
                     msg = f"⚠️ ALARM: Il nodo {node_id} ({topic}) non ha aggiornato la telemetria da più di 3 ore."
                     print(f"[{time.strftime('%H:%M:%S')}] {msg}")
                     
-                    # PLAN: Telegram integration
+                    # Telegram integration
                     # if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
                     #     try:
                     #         import requests
