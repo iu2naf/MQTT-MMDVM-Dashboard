@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, send_file, Response, stream_with_context
+from flask import Flask, jsonify, send_file, Response, stream_with_context, make_response, redirect, url_for
 import threading
 import mqtt_parser
 import os
@@ -36,7 +36,13 @@ def on_repeaters_message(client, userdata, msg):
 def repeaters_mqtt_loop():
     global repeaters_client
     with repeaters_client_lock:
-        repeaters_client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2)
+        try:
+            # Tenta inizializzazione per paho-mqtt >= 2.0.0
+            repeaters_client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2)
+        except AttributeError:
+            # Fallback per versioni precedenti (< 2.0.0)
+            repeaters_client = mqtt_client.Client()
+        
         repeaters_client.username_pw_set(mqtt_parser.MQTT_CONFIG["user"], mqtt_parser.MQTT_CONFIG["pass"])
         repeaters_client.on_connect = on_repeaters_connect
         repeaters_client.on_message = on_repeaters_message
@@ -122,7 +128,7 @@ def events():
 
 @app.route("/repeaters")
 def repeaters():
-    return send_file("repeaters.html")
+    return redirect(url_for('index'))
 
 
 @app.route("/api/repeaters")
@@ -131,6 +137,72 @@ def get_repeaters_messages():
         return jsonify({'messages': repeaters_messages, 'last_update': repeaters_last_update})
 
 
+@app.route("/api/export_calls")
+def export_calls():
+    import csv
+    from io import StringIO
+    import sqlite3
+    
+    si = StringIO()
+    cw = csv.writer(si)
+    # Header del CSV
+    cw.writerow(['Data', 'Orario', 'Modo', 'Slot', 'Nominativo', 'Nome', 'Target (TG)', 'Nodo', 'Durata', 'BER', 'City', 'Country'])
+    
+    try:
+        conn = sqlite3.connect(mqtt_parser.DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT data, orario, mode, slot, callsign, name, tg, nodo, duration, ber, city, country FROM calls ORDER BY id DESC")
+        rows = c.fetchall()
+        for row in rows:
+            cw.writerow(row)
+        conn.close()
+    except Exception as e:
+        print(f"Errore Export Calls: {e}")
+
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=history_export.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
+
+@app.route("/api/export_repeaters")
+def export_repeaters():
+    import csv
+    from io import StringIO
+    
+    si = StringIO()
+    cw = csv.writer(si)
+    # Header potenziato con campi specifici
+    cw.writerow(['Node', 'Gateway', 'Topic', 'Callsign', 'ID', 'RX Frequency', 'TX Frequency', 'Power', 'Location', 'Last Seen'])
+    
+    with repeaters_messages_lock:
+        for topic, payload in repeaters_messages.items():
+            parts = topic.split('/')
+            node = parts[1] if len(parts) > 1 else topic
+            gateway = parts[2] if len(parts) > 2 else "General"
+            
+            # Gestione subtopic multipli
+            subtopic = "/".join(parts[3:]) if len(parts) > 3 else "General"
+            
+            ts = repeaters_last_update.get(topic, 0)
+            last_seen = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts)) if ts > 0 else "Mai"
+            
+            # Estrazione sicura dei principali campi tecnici
+            cw.writerow([
+                node, gateway, subtopic,
+                payload.get('Callsign', ''),
+                payload.get('Id', ''),
+                payload.get('RXFrequency', ''),
+                payload.get('TXFrequency', ''),
+                payload.get('Power', ''),
+                payload.get('Location', payload.get('Description', '')),
+                last_seen
+            ])
+            
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=repeaters_status_export.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
 
 @app.route("/clear", methods=["POST"])
 def clear_history():
@@ -144,6 +216,33 @@ def clear_history():
     with mqtt_parser.calls_lock:
         mqtt_parser.calls.clear()
     return jsonify({"status": "ok"})
+
+
+def watchdog_thread():
+    import time
+    # TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    # TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+    
+    while True:
+        time.sleep(3600)  # Check every hour
+        current_time = time.time()
+        timeout_seconds = 3 * 3600 # 3 hours
+        
+        with repeaters_messages_lock:
+            for topic, last_ts in repeaters_last_update.items():
+                if current_time - last_ts > timeout_seconds:
+                    node_id = topic.split('/')[1] if len(topic.split('/')) > 1 else topic
+                    msg = f"⚠️ ALARM: Il nodo {node_id} ({topic}) non ha aggiornato la telemetria da più di 3 ore."
+                    print(f"[{time.strftime('%H:%M:%S')}] {msg}")
+                    
+                    # PLAN: Telegram integration
+                    # if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+                    #     try:
+                    #         import requests
+                    #         requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", 
+                    #                       json={'chat_id': TELEGRAM_CHAT_ID, 'text': msg})
+                    #     except Exception as e:
+                    #         print(f"Telegram error: {e}")
 
 
 def start_mqtt():
@@ -161,6 +260,9 @@ if __name__ == "__main__":
 
     rep_updater_thread = threading.Thread(target=repeaters_hourly_updater, daemon=True)
     rep_updater_thread.start()
+
+    watchdog = threading.Thread(target=watchdog_thread, daemon=True)
+    watchdog.start()
 
 
     try:
