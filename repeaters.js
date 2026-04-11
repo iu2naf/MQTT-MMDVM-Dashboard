@@ -30,6 +30,15 @@ function safeId(...parts) {
 function formatValue(key, value) {
     const lowerKey = key.toLowerCase();
     
+    // Gestione specifica per la Potenza (evita che valori come 1 vengano trasformati in "ON")
+    if (lowerKey.includes('power')) return value + 'W';
+    
+    // Gestione Frequenze
+    if (key === 'RXFrequency' || key === 'TXFrequency') {
+        return (parseInt(value) / 1000000).toFixed(4) + ' MHz';
+    }
+
+    // Gestione valori booleani / stati
     if (value === '1' || value === 1 || value === true || (typeof value === 'string' && value.toLowerCase() === 'true')) {
         if (lowerKey.includes('enable')) return '<span class="badge on">ABILITATA</span>';
         return '<span class="badge on">ON</span>';
@@ -38,13 +47,11 @@ function formatValue(key, value) {
         if (lowerKey.includes('enable')) return '<span class="badge off">DISABILITATA</span>';
         return '<span class="badge off">OFF</span>';
     }
-    if (key === 'RXFrequency' || key === 'TXFrequency') {
-        return (parseInt(value) / 1000000).toFixed(4) + ' MHz';
-    }
-    if (lowerKey.includes('power')) return value + 'W';
+
     if (typeof value === 'object') return JSON.stringify(value);
     return value;
 }
+
 
 function formatLabel(key) {
     const labels = {
