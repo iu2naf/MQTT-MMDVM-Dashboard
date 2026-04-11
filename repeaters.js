@@ -30,8 +30,10 @@ function safeId(...parts) {
 function formatValue(key, value) {
     const lowerKey = key.toLowerCase();
     
-    // Gestione specifica per la Potenza (evita che valori come 1 vengano trasformati in "ON")
+    // Gestione specifica per i campi tecnici numerici (evita che valori come 0 o 1 diventino ON/OFF)
     if (lowerKey.includes('power')) return value + 'W';
+    if (lowerKey.includes('height')) return value + 'm';
+    if (lowerKey.includes('latitude') || lowerKey.includes('longitude')) return value;
     
     // Gestione Frequenze
     if (key === 'RXFrequency' || key === 'TXFrequency') {
