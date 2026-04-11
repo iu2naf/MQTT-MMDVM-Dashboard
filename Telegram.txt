@@ -1,0 +1,38 @@
+Per configurare la funzione di alert lato Telegram, devi seguire questi passaggi per ottenere le due informazioni chiave: il Bot Token e il Chat ID.
+
+1. Creare il Bot (Ottenere il TELEGRAM_BOT_TOKEN)
+
+Cerca @BotFather su Telegram e avvia la conversazione.
+Invia il comando /newbot.
+Scegli un nome per il tuo bot (es: MMDVM Alert Bot).
+Scegli uno username per il bot (deve finire con _bot, es: iu2naf_dashboard_bot).
+BotFather ti risponderà con un messaggio di congratulazioni contenente il Token API (una stringa simile a 123456789:ABCdefGHIjklMNOpqrsTUV...). Copia questo valore.
+
+2. Ottenere il tuo TELEGRAM_CHAT_ID
+Il Chat ID identifica la persona (te) o il gruppo che deve ricevere i messaggi.
+
+Per riceverli in chat privata:
+
+Cerca il nuovo bot su Telegram (tramite lo username scelto) e premi Avvia.
+Cerca il bot @userinfobot su Telegram e inviagli un messaggio.
+Ti risponderà con il tuo Id (un numero, es: 987654321). Copia questo numero.
+
+Per riceverli in un gruppo:
+
+Crea un gruppo e aggiungi sia te stesso che il tuo bot come membri.
+Aggiungi il bot @RawDataBot al gruppo.
+Appena aggiunto, il bot scriverà un blocco di codice JSON. Cerca la sezione "chat" e il valore "id" (solitamente inizia con un meno, es: -100123456789).
+Una volta segnato l'ID, puoi rimuovere @RawDataBot.
+
+3. Cosa fare dopo
+Una volta ottenuti questi dati, dovrai:
+
+Aprire il file 
+
+.env
+
+De-commentare le righe 7 e 8 rimuovendo il #.
+Inserire i valori ottenuti:
+TELEGRAM_BOT_TOKEN="il_tuo_token_qui"
+TELEGRAM_CHAT_ID="il_tuo_id_qui"
+Successivamente, andrà attivato il codice in app.py che attualmente è commentato.

@@ -128,11 +128,11 @@ event_lock = threading.Lock()
 def notify_event(event_type, data):
     with event_lock:
         event_data = {"type": event_type, "timestamp": time.time(), "payload": data}
-        for q in event_subscribers[:]: # Use slice to avoid issues if list modified
+        for q in event_subscribers[:]:
             try:
                 q.put_nowait(event_data)
             except:
-                pass # Queue full or other issue
+                pass
 
 def format_ber(val):
     if val is None or val == "": return "0%"

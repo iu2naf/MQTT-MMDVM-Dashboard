@@ -46,6 +46,7 @@
                 <button class="tab-btn" data-tab="nodes">Live Nodes</button>
                 <button class="tab-btn" data-tab="gateway">Gateway Status</button>
                 <button class="tab-btn" data-tab="stats">Analytics & Map</button>
+                <button class="tab-btn" data-tab="repeaters">Repeaters Status</button>
             </div>
         </div>
 
@@ -78,8 +79,7 @@
                 <h3
                     style="margin: 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
                     Calls History</h3>
-                <!-- <button id="clear-history" class="filter-btn" style="border-color: #ef4444; color: #ef4444;">Clear
-                    History</button>-->
+                <a href="/api/export_calls" target="_blank" class="filter-btn">📥 Esporta Cronologia</a>
             </div>
 
             <div class="table-container">
@@ -189,6 +189,33 @@
                     <h4>TalkGroups Usage</h4>
                     <canvas id="tgChart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <div id="tab-repeaters" class="tab-pane">
+            <div class="dashboard-header">
+                <div class="connection-status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">In attesa...</span>
+                </div>
+                
+                <div class="stats-row">
+                    <div class="stat-pill">
+                        <span class="value" id="statNodes">0</span>
+                        <span class="label">Nodi Attivi</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="value" id="statTopics">0</span>
+                        <span class="label">Topics Loggati</span>
+                    </div>
+                    
+                    <a href="/api/export_repeaters" target="_blank" class="filter-btn">📥 Esporta CSV</a>
+                </div>
+            </div>
+
+            <div class="node-tabs" id="nodeTabs"></div>
+            <div id="dashboardContent">
+                <div class="spinner" id="loadingSpinner"></div>
             </div>
         </div>
     </main>
@@ -688,7 +715,7 @@
                 <td data-label="STATUS">${statusBadge}</td>
                 <td data-label="OPERATOR" class="id-cell">${escapeHtml(lastCall.ID)}${extSuffix}</td>
                 <td data-label="NAME" class="name-cell">${escapeHtml(lastCall.NAME)}</td>
-                <td data-label="TARGET" class="tg">${escapeHtml(lastCall.TG)}</td>
+                <td data-label="TARGET">${escapeHtml(lastCall.TG)}</td>
                 <td data-label="MODE"><span class="${modeClass}">${escapeHtml(lastCall.MODE)}${lastCall.MODE.toUpperCase() === 'DMR' ? ' (TS ' + lastCall.SLOT + ')' : ''}</span></td>
                 <td data-label="BER" class="${berClass}">${escapeHtml(lastCall.BER)}</td>
                 <td data-label="DURATION" class="node-time-cell">${displayDuration}</td>
@@ -1099,6 +1126,7 @@
         loadGatewayStatus();
         initRealTime();
     </script>
+    <script src="repeaters.js"></script>
 
 </body>
 
