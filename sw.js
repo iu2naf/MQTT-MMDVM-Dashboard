@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mmdvm-dash-v1';
+const CACHE_NAME = 'mmdvm-dash-v1.1';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -21,14 +21,24 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Ignora le richieste per API e dati dinamici (devono essere sempre freschi)
+  if (event.request.url.includes('/data') || event.request.url.includes('/api/')) {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.match(event.request).then(response => {
+        const fetchPromise = fetch(event.request).then(networkResponse => {
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        });
+        // Ritorna la risorsa dalla cache se presente, altrimenti aspetta il network
+        return response || fetchPromise;
+      });
+    })
   );
 });
 
@@ -38,7 +48,8 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheNames.indexOf(cacheName) === -1) {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Cleaning old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -46,3 +57,4 @@ self.addEventListener('activate', event => {
     })
   );
 });
+
