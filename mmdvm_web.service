@@ -6,7 +6,8 @@ After=network.target
 # Carica le credenziali da un file esterno non incluso nel repository
 EnvironmentFile=/opt/mmdvm_web/.env
 
-User=root
+# Utente dedicato (sudo useradd -r -s /usr/sbin/nologin mmdvm; sudo chown -R mmdvm: /opt/mmdvm_web)
+User=mmdvm
 WorkingDirectory=/opt/mmdvm_web
 
 ExecStart=/usr/bin/python3 /opt/mmdvm_web/app.py

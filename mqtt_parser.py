@@ -75,7 +75,6 @@ def init_db():
         print("DEBUG: Colonna source_type aggiunta alla tabella calls.")
     except sqlite3.OperationalError:
         pass
-        pass
 
     try:
         c.execute("ALTER TABLE calls ADD COLUMN source_ext TEXT")
@@ -163,11 +162,13 @@ def download_databases():
     for filename, url in urls.items():
         try:
             path = os.path.join(base_dir, filename)
-            urllib.request.urlretrieve(url, path)
+            tmp_path = path + ".tmp"
+            urllib.request.urlretrieve(url, tmp_path)
+            os.replace(tmp_path, path)  # sostituzione atomica: niente file troncati
             print(f"DEBUG: Scaricato {filename}")
         except Exception as e:
             print(f"Errore download {filename}: {e}")
-    load_databases()
+    load_databases(force=True)
 
 def db_scheduler():
     print("DEBUG: Scheduler database avviato (prossimo controllo tra 1 ora)")
@@ -180,7 +181,8 @@ def db_scheduler():
             last_update_day = now.day
         time.sleep(3600)
 
-def load_databases():
+def load_databases(force=False):
+    """Importa le anagrafiche in SQLite. Con force=True sostituisce i dati gia' presenti."""
     global tg_map
     
     conn = sqlite3.connect(DB_PATH)
@@ -195,10 +197,12 @@ def load_databases():
                     # Controlla se il DB è già popolato
                     table = "users" if db_type == "dmr" else "nxdn_users"
                     c.execute(f"SELECT count(*) FROM {table}")
-                    if c.fetchone()[0] > 0:
+                    if c.fetchone()[0] > 0 and not force:
                         print(f"DEBUG: Tabella {table} già popolata.")
                         found = True
                         break
+                    if force:
+                        c.execute(f"DELETE FROM {table}")
 
                     print(f"DEBUG: Migrazione {filename} su SQLite...")
                     loaded_count = 0
@@ -222,6 +226,7 @@ def load_databases():
                     found = True
                     break
                 except Exception as e:
+                    conn.rollback()
                     print(f"Errore caricamento {path}: {e}")
         if not found:
             print(f"ATTENZIONE: Database {filename} non trovato.")
@@ -527,9 +532,14 @@ def start_mqtt():
     sched_t.daemon = True
     sched_t.start()
     
-    client = mqtt.Client()
+    try:
+        # paho-mqtt >= 2.0
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    except AttributeError:
+        # paho-mqtt < 2.0
+        client = mqtt.Client()
     client.username_pw_set(MQTT_CONFIG["user"], MQTT_CONFIG["pass"])
-    def on_connect(c, u, f, rc):
+    def on_connect(c, u, f, rc, props=None):
         if rc == 0:
             print(f"Connesso con successo al broker MQTT. Iscrizione ai topic:")
             for topic in MQTT_CONFIG["topics"]:

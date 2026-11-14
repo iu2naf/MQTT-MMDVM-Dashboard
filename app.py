@@ -187,6 +187,8 @@ def export_repeaters():
             last_seen = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts)) if ts > 0 else "Mai"
             
             # Estrazione sicura dei principali campi tecnici
+            if not isinstance(payload, dict):
+                payload = {}
             cw.writerow([
                 node, gateway, subtopic,
                 payload.get('Callsign', ''),
@@ -206,6 +208,16 @@ def export_repeaters():
 @app.route("/clear", methods=["POST"])
 def clear_history():
     import sqlite3
+    import hmac
+    from flask import request
+
+    # Operazione distruttiva: richiede ADMIN_TOKEN configurato nel .env
+    # e inviato dal client nell'header "X-Admin-Token".
+    admin_token = os.environ.get("ADMIN_TOKEN", "")
+    if not admin_token:
+        return jsonify({"status": "disabled"}), 403
+    if not hmac.compare_digest(request.headers.get("X-Admin-Token", ""), admin_token):
+        return jsonify({"status": "unauthorized"}), 401
 
     conn = sqlite3.connect(mqtt_parser.DB_PATH)
     c = conn.cursor()
