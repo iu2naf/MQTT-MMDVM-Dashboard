@@ -112,3 +112,16 @@ The application follows a modern client-server architecture:
 - File paths are managed robustly using Python's pathlib library.
 
 ### © 2026  FreeDMR Italia - Developed by FreeDMR-IT Dev Team
+
+Configurazione opzionale / Optional settings (.env)
+==
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`: alert Telegram quando un nodo non invia telemetria (`NODE_TIMEOUT_HOURS`, default 3) e quando torna online. Vedi `Telegram.txt`.
+- `KEEP_HISTORY=1`: conserva la cronologia chiamate tra i riavvii; `RETENTION_DAYS` (default 30) elimina i record più vecchi. Senza, la cronologia viene svuotata all'avvio.
+- `ADMIN_TOKEN`: abilita `POST /clear` (header `X-Admin-Token`).
+
+Test
+==
+```
+pip install -r requirements.txt
+python -m unittest discover -s tests
+```

@@ -46,8 +46,13 @@ MQTT_CONFIG = {
 
 HTTP_PORT = int(os.environ.get("HTTP_PORT", 7000))
 
+# Cronologia: di default svuotata all'avvio (comportamento storico).
+# KEEP_HISTORY=1 la conserva; RETENTION_DAYS (default 30) elimina i record piu' vecchi.
+KEEP_HISTORY = os.environ.get("KEEP_HISTORY", "0").strip().lower() in ("1", "true", "yes")
+RETENTION_DAYS = int(os.environ.get("RETENTION_DAYS", 30))
+
 from pathlib import Path
-DB_PATH = str(Path(__file__).parent / "dashboard.db")
+DB_PATH = os.environ.get("DB_PATH") or str(Path(__file__).parent / "dashboard.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -106,14 +111,39 @@ def init_db():
     # Indici per velocità
     c.execute('CREATE INDEX IF NOT EXISTS idx_users_id ON users(radio_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_nxdn_id ON nxdn_users(radio_id)')
-    # Pulizia automatica cronologia all'avvio (come richiesto per mmdvm_web.service)
-    c.execute("DELETE FROM calls")
-    print("DEBUG: Cronologia chiamate svuotata all'avvio.")
+    if KEEP_HISTORY:
+        # Le chiamate rimaste aperte da prima del riavvio non finiranno mai:
+        # le chiudiamo come interrotte per non mostrarle "in aria" per sempre.
+        c.execute("UPDATE calls SET duration='0.0!', is_idle=0 WHERE duration IS NULL OR duration=''")
+        print("DEBUG: Cronologia conservata (KEEP_HISTORY attivo).")
+    else:
+        c.execute("DELETE FROM calls")
+        print("DEBUG: Cronologia chiamate svuotata all'avvio.")
     
     conn.commit()
     conn.close()
 
 init_db()
+
+def purge_old_calls(days=None):
+    """Elimina le chiamate piu' vecchie di `days` giorni. Ritorna i record rimossi."""
+    days = RETENTION_DAYS if days is None else days
+    if days <= 0:
+        return 0
+    cutoff = time.time() - days * 86400
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute("DELETE FROM calls WHERE start_ts < ?", (cutoff,))
+        return cur.rowcount
+
+def purge_scheduler():
+    while True:
+        try:
+            n = purge_old_calls()
+            if n:
+                print(f"DEBUG: Eliminate {n} chiamate piu' vecchie di {RETENTION_DAYS} giorni.")
+        except Exception as e:
+            print(f"Errore pulizia cronologia: {e}")
+        time.sleep(86400)
 
 calls = []
 calls_lock = threading.Lock()
@@ -280,8 +310,9 @@ def save_or_update_call(call_data):
                       (call_data["MODE"], call_data["SLOT"], call_data["start_ts"]))
             existing = c.fetchone()
             if existing:
-                c.execute("UPDATE calls SET ber=?, is_idle=? WHERE id=?", 
-                          (call_data["BER"], call_data.get("is_idle", 0), existing[0]))
+                c.execute("UPDATE calls SET ber=?, is_idle=?, callsign=?, name=? WHERE id=?", 
+                          (call_data["BER"], call_data.get("is_idle", 0),
+                           call_data["ID"], call_data["NAME"], existing[0]))
             else:
                 c.execute('''INSERT INTO calls 
                              (from_type, id_raw, callsign, name, city, country, tg, mode, slot, nodo, ber, data, orario, start_ts, duration, source_ext, lat, lon, source_type, is_idle)
@@ -336,7 +367,7 @@ def handle_link_status_message(topic, data, mode, now_ts):
     link_repeater = data.get("repeater") or ""
     link_timestamp = data.get("timestamp") or ""
     
-    if mode == "status":
+    if mode == "STATUS":
         link_action = "online"
         link_reason = data.get("message", "")
     
@@ -531,6 +562,11 @@ def start_mqtt():
     sched_t = threading.Thread(target=db_scheduler)
     sched_t.daemon = True
     sched_t.start()
+
+    if KEEP_HISTORY:
+        purge_t = threading.Thread(target=purge_scheduler)
+        purge_t.daemon = True
+        purge_t.start()
     
     try:
         # paho-mqtt >= 2.0

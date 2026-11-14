@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, send_file, Response, stream_with_context, make_response, redirect, url_for
 import threading
 import mqtt_parser
+import alerts
 import os
 import json
 import queue
@@ -230,32 +231,26 @@ def clear_history():
 
 
 def watchdog_thread():
-    import time
-    # TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    # TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-    
+    """Controlla la telemetria e avvisa (log + Telegram) quando un nodo
+    smette di aggiornarsi o torna online."""
+    timeout = int(os.environ.get("NODE_TIMEOUT_HOURS", "3")) * 3600
+    interval = int(os.environ.get("WATCHDOG_INTERVAL_SEC", "600"))
+    alerted = set()
+
     while True:
-        # Check telemetry ogni ora
-        time.sleep(3600)
-        current_time = time.time()
-        # Check Node ogni 3 ore
-        timeout_seconds = 3 * 3600
-        
+        time.sleep(interval)
         with repeaters_messages_lock:
-            for topic, last_ts in repeaters_last_update.items():
-                if current_time - last_ts > timeout_seconds:
-                    node_id = topic.split('/')[1] if len(topic.split('/')) > 1 else topic
-                    msg = f"⚠️ ALARM: Il nodo {node_id} ({topic}) non ha aggiornato la telemetria da più di 3 ore."
-                    print(f"[{time.strftime('%H:%M:%S')}] {msg}")
-                    
-                    # Telegram integration
-                    # if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
-                    #     try:
-                    #         import requests
-                    #         requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", 
-                    #                       json={'chat_id': TELEGRAM_CHAT_ID, 'text': msg})
-                    #     except Exception as e:
-                    #         print(f"Telegram error: {e}")
+            snapshot = dict(repeaters_last_update)
+        offline, recovered = alerts.evaluate_nodes(snapshot, time.time(), timeout, alerted)
+
+        for node, age in offline:
+            msg = f"⚠️ ALARM: il nodo {node} non aggiorna la telemetria da {int(age // 3600)} ore."
+            print(f"[{time.strftime('%H:%M:%S')}] {msg}")
+            alerts.send_telegram(msg)
+        for node in recovered:
+            msg = f"✅ Il nodo {node} è tornato online."
+            print(f"[{time.strftime('%H:%M:%S')}] {msg}")
+            alerts.send_telegram(msg)
 
 
 def start_mqtt():
