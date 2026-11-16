@@ -351,6 +351,67 @@ def get_recent_calls(limit=40):
     return results
 
 
+def parse_date_range(date_from=None, date_to=None):
+    """Converte due date 'YYYY-MM-DD' (ora locale, estremi inclusi) in (ts_inizio, ts_fine_esclusa).
+    Valori vuoti = nessun limite (None). Solleva ValueError se il formato e' errato."""
+    start = end = None
+    if date_from:
+        start = datetime.datetime.strptime(date_from, "%Y-%m-%d").timestamp()
+    if date_to:
+        end = (datetime.datetime.strptime(date_to, "%Y-%m-%d") + datetime.timedelta(days=1)).timestamp()
+    if start is not None and end is not None and start >= end:
+        raise ValueError("intervallo date non valido")
+    return start, end
+
+def export_calls_rows(date_from=None, date_to=None):
+    start, end = parse_date_range(date_from, date_to)
+    where, params = [], []
+    if start is not None:
+        where.append("start_ts >= ?"); params.append(start)
+    if end is not None:
+        where.append("start_ts < ?"); params.append(end)
+    sql = ("SELECT data, orario, mode, slot, callsign, name, tg, nodo, duration, ber, city, country FROM calls"
+           + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id DESC")
+    with sqlite3.connect(DB_PATH) as conn:
+        return conn.execute(sql, params).fetchall()
+
+_DUR_SQL = "CAST(REPLACE(duration, '!', '') AS REAL)"
+
+def get_stats(days=7):
+    """Statistiche aggregate sulle chiamate degli ultimi `days` giorni (1-365)."""
+    days = max(1, min(int(days), 365))
+    today = datetime.date.today()
+    since = datetime.datetime.combine(today - datetime.timedelta(days=days - 1), datetime.time.min).timestamp()
+    done = f"AND duration IS NOT NULL AND duration != ''"
+    with sqlite3.connect(DB_PATH) as conn:
+        q = conn.execute
+        hours = [0] * 24
+        for h, n in q("SELECT strftime('%H', start_ts, 'unixepoch', 'localtime'), COUNT(*) "
+                      "FROM calls WHERE start_ts >= ? GROUP BY 1", (since,)):
+            hours[int(h)] = n
+        per_day = dict(q("SELECT strftime('%Y-%m-%d', start_ts, 'unixepoch', 'localtime'), COUNT(*) "
+                         "FROM calls WHERE start_ts >= ? GROUP BY 1", (since,)).fetchall())
+        day_labels = [(today - datetime.timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
+        by_node = q("SELECT UPPER(nodo), COUNT(*), ROUND(COALESCE(SUM(" + _DUR_SQL + "), 0), 1) FROM calls "
+                    "WHERE start_ts >= ? " + done + " GROUP BY UPPER(nodo) ORDER BY 2 DESC LIMIT 15",
+                    (since,)).fetchall()
+        top_users = q("SELECT callsign, MAX(name), COUNT(*), ROUND(COALESCE(SUM(" + _DUR_SQL + "), 0), 1) FROM calls "
+                      "WHERE start_ts >= ? " + done + " GROUP BY callsign ORDER BY 3 DESC, 4 DESC LIMIT 10",
+                      (since,)).fetchall()
+        top_tgs = q("SELECT tg, COUNT(*), ROUND(COALESCE(SUM(" + _DUR_SQL + "), 0), 1) FROM calls "
+                    "WHERE start_ts >= ? " + done + " GROUP BY tg ORDER BY 2 DESC, 3 DESC LIMIT 10",
+                    (since,)).fetchall()
+        total = q("SELECT COUNT(*) FROM calls WHERE start_ts >= ?", (since,)).fetchone()[0]
+    return {
+        "days": days, "total": total,
+        "by_hour": hours,
+        "by_day": {"labels": day_labels, "values": [per_day.get(d, 0) for d in day_labels]},
+        "by_node": [{"node": r[0], "calls": r[1], "seconds": r[2]} for r in by_node],
+        "top_users": [{"callsign": r[0], "name": r[1], "calls": r[2], "seconds": r[3]} for r in top_users],
+        "top_tgs": [{"tg": r[0], "calls": r[1], "seconds": r[2]} for r in top_tgs],
+        "history_kept": KEEP_HISTORY,
+    }
+
 def handle_link_status_message(topic, data, mode, now_ts):
     topic_parts = topic.split('/')
     if len(topic_parts) < 1: return

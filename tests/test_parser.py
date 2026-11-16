@@ -182,6 +182,66 @@ class TestUserDbReload(ParserBase):
             os.chdir(cwd)
 
 
+def insert_call(callsign, node, tg, start_ts, duration="10.0", name="N"):
+    with mp.sqlite3.connect(mp.DB_PATH) as c:
+        c.execute("INSERT INTO calls (callsign, name, tg, mode, slot, nodo, start_ts, duration, data, orario) "
+                  "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                  (callsign, name, tg, "DMR", "1", node, start_ts, duration, "x", "y"))
+
+
+def noon(days_ago):
+    d = mp.datetime.date.today() - mp.datetime.timedelta(days=days_ago)
+    return mp.datetime.datetime.combine(d, mp.datetime.time(12, 0)).timestamp()
+
+
+class TestExportRange(ParserBase):
+    def test_range_filters_inclusive(self):
+        insert_call("A", "N1", "1", noon(5))
+        insert_call("B", "N1", "1", noon(2))
+        insert_call("C", "N1", "1", noon(0))
+        d = lambda n: (mp.datetime.date.today() - mp.datetime.timedelta(days=n)).isoformat()
+        self.assertEqual(len(mp.export_calls_rows()), 3)
+        self.assertEqual(len(mp.export_calls_rows(d(2), d(0))), 2)
+        self.assertEqual([r[4] for r in mp.export_calls_rows(d(5), d(5))], ["A"])
+        self.assertEqual(len(mp.export_calls_rows(date_to=d(3))), 1)
+
+    def test_invalid_range(self):
+        with self.assertRaises(ValueError):
+            mp.export_calls_rows("2026-13-01", None)
+        with self.assertRaises(ValueError):
+            mp.export_calls_rows("2026-05-10", "2026-05-01")
+        with self.assertRaises(ValueError):
+            mp.export_calls_rows("'; DROP TABLE calls;--", None)
+
+
+class TestStats(ParserBase):
+    def test_aggregates(self):
+        insert_call("IU2ABC", "N1", "222 (Italia)", noon(0), "10.0!", "Mario")
+        insert_call("IU2ABC", "n1", "222 (Italia)", noon(1), "20.5")
+        insert_call("IU2XYZ", "N2", "9", noon(1), "5")
+        insert_call("OLD", "N1", "9", noon(40), "99")
+        insert_call("ACTIVE", "N1", "9", noon(0), "")
+        st = mp.get_stats(7)
+        self.assertEqual(st["total"], 4)  # esclude OLD (fuori periodo)
+        self.assertEqual(st["by_hour"][12], 4)
+        self.assertEqual(sum(st["by_day"]["values"]), 4)
+        self.assertEqual(len(st["by_day"]["labels"]), 7)
+        self.assertEqual(st["by_day"]["values"][-1], 2)
+        top = st["top_users"][0]
+        self.assertEqual((top["callsign"], top["calls"], top["seconds"]), ("IU2ABC", 2, 30.5))
+        self.assertEqual(st["top_tgs"][0]["tg"], "222 (Italia)")
+        self.assertEqual(st["by_node"][0]["node"], "N1")  # nodi accorpati senza distinzione di maiuscole
+        self.assertEqual(st["by_node"][0]["calls"], 2)
+
+    def test_days_clamped(self):
+        self.assertEqual(mp.get_stats(0)["days"], 1)
+        self.assertEqual(mp.get_stats(9999)["days"], 365)
+
+    def test_empty(self):
+        st = mp.get_stats(7)
+        self.assertEqual((st["total"], st["top_users"], st["by_node"]), (0, [], []))
+
+
 class TestAlerts(unittest.TestCase):
     def test_offline_once_then_recovered(self):
         state = set()

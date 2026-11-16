@@ -109,8 +109,13 @@ def events():
             yield f"data: {json.dumps({'type': 'system', 'msg': 'connected'})}\n\n"
             
             while True:
-                # Blocca finché non arriva un evento
-                event = q.get()
+                try:
+                    event = q.get(timeout=15)
+                except queue.Empty:
+                    # Keepalive: scrivendo sul socket si scopre subito se il client
+                    # e' sparito (GeneratorExit) e il thread viene liberato.
+                    yield ": keepalive\n\n"
+                    continue
                 yield f"data: {json.dumps(event)}\n\n"
                 q.task_done()
         except GeneratorExit:
@@ -144,26 +149,43 @@ def export_calls():
     from io import StringIO
     import sqlite3
     
+    from flask import request
+
+    # Filtro opzionale per data: ?from=YYYY-MM-DD&to=YYYY-MM-DD (estremi inclusi)
+    date_from = request.args.get("from", "").strip()
+    date_to = request.args.get("to", "").strip()
+    try:
+        rows = mqtt_parser.export_calls_rows(date_from, date_to)
+    except ValueError:
+        return jsonify({"error": "Date non valide: usare il formato YYYY-MM-DD con from <= to"}), 400
+    except Exception as e:
+        print(f"Errore Export Calls: {e}")
+        rows = []
+
     si = StringIO()
     cw = csv.writer(si)
     # Header del CSV
     cw.writerow(['Data', 'Orario', 'Modo', 'Slot', 'Nominativo', 'Nome', 'Target (TG)', 'Nodo', 'Durata', 'BER', 'City', 'Country'])
-    
-    try:
-        conn = sqlite3.connect(mqtt_parser.DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT data, orario, mode, slot, callsign, name, tg, nodo, duration, ber, city, country FROM calls ORDER BY id DESC")
-        rows = c.fetchall()
-        for row in rows:
-            cw.writerow(row)
-        conn.close()
-    except Exception as e:
-        print(f"Errore Export Calls: {e}")
+    for row in rows:
+        cw.writerow(row)
 
+    suffix = ""
+    if date_from or date_to:
+        suffix = f"_{date_from or 'inizio'}_{date_to or 'oggi'}"
     output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = "attachment; filename=history_export.csv"
+    output.headers["Content-Disposition"] = f"attachment; filename=history_export{suffix}.csv"
     output.headers["Content-type"] = "text/csv"
     return output
+
+
+@app.route("/api/stats")
+def stats():
+    from flask import request
+    try:
+        days = int(request.args.get("days", 7))
+    except ValueError:
+        return jsonify({"error": "days deve essere un intero"}), 400
+    return jsonify(mqtt_parser.get_stats(days))
 
 
 @app.route("/api/export_repeaters")
@@ -277,7 +299,10 @@ if __name__ == "__main__":
         from waitress import serve
 
         print(f"Avvio del server WSGI (Waitress) sulla porta {mqtt_parser.HTTP_PORT}...")
-        serve(app, host="0.0.0.0", port=mqtt_parser.HTTP_PORT)
+        # Ogni client SSE occupa un thread: il pool deve essere molto piu' grande
+        # del default (4), altrimenti pochi visitatori bloccano /data e il resto.
+        serve(app, host="0.0.0.0", port=mqtt_parser.HTTP_PORT,
+              threads=int(os.environ.get("WAITRESS_THREADS", 64)))
     except ImportError:
         print(
             f"Libreria Waitress non trovata. Esecuzione server di sviluppo Flask sulla porta {mqtt_parser.HTTP_PORT}..."

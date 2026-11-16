@@ -117,6 +117,7 @@ Configurazione opzionale / Optional settings (.env)
 ==
 - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`: alert Telegram quando un nodo non invia telemetria (`NODE_TIMEOUT_HOURS`, default 3) e quando torna online. Vedi `Telegram.txt`.
 - `KEEP_HISTORY=1`: conserva la cronologia chiamate tra i riavvii; `RETENTION_DAYS` (default 30) elimina i record più vecchi. Senza, la cronologia viene svuotata all'avvio.
+- `WAITRESS_THREADS` (default 64): thread del server; ogni client aperto della dashboard ne occupa uno (SSE).
 - `ADMIN_TOKEN`: abilita `POST /clear` (header `X-Admin-Token`).
 
 Test
@@ -125,3 +126,9 @@ Test
 pip install -r requirements.txt
 python -m unittest discover -s tests
 ```
+
+Novità / Features
+==
+- Esporta Cronologia con filtro date: `/api/export_calls?from=YYYY-MM-DD&to=YYYY-MM-DD` (estremi inclusi, entrambi opzionali).
+- Ricerca per nominativo, nome o ID nella barra dei filtri.
+- Statistiche storiche (tab Analytics): chiamate per ora, giorno e nodo, utenti e TG più attivi con tempo in aria. API: `/api/stats?days=7` (1-365). Per periodi lunghi serve `KEEP_HISTORY=1`.

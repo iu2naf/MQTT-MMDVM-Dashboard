@@ -71,6 +71,8 @@
                 <select id="id-filter">
                     <option value="all">ID: ALL</option>
                 </select>
+                <input type="search" id="search-filter" class="search-input" placeholder="🔍 Cerca nominativo / nome"
+                    autocomplete="off" maxlength="40" aria-label="Cerca per nominativo o nome">
             </div>
         </div>
 
@@ -80,7 +82,11 @@
                 <h3
                     style="margin: 0; font-size: 14px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
                     Calls History</h3>
-                <a href="/api/export_calls" target="_blank" class="filter-btn">📥 Esporta Cronologia</a>
+                <div class="export-box">
+                    <label>Dal <input type="date" id="export-from"></label>
+                    <label>Al <input type="date" id="export-to"></label>
+                    <a href="/api/export_calls" id="export-calls-btn" target="_blank" class="filter-btn">📥 Esporta Cronologia</a>
+                </div>
             </div>
 
             <div class="table-container">
@@ -191,6 +197,50 @@
                     <canvas id="tgChart"></canvas>
                 </div>
             </div>
+
+            <div class="history-header">
+                <h3>Statistiche storiche</h3>
+                <select id="stats-days" aria-label="Periodo">
+                    <option value="1">Solo oggi</option>
+                    <option value="7" selected>Ultimi 7 giorni</option>
+                    <option value="30">Ultimi 30 giorni</option>
+                    <option value="90">Ultimi 90 giorni</option>
+                </select>
+                <span id="stats-total" class="stats-note"></span>
+            </div>
+            <div id="stats-warning" class="stats-note" style="display:none;">
+                La cronologia viene svuotata a ogni riavvio: attiva <code>KEEP_HISTORY=1</code> per avere statistiche su periodi lunghi.
+            </div>
+            <div class="stats-container"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                <div class="chart-card">
+                    <h4>Chiamate per ora del giorno</h4>
+                    <canvas id="hourChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h4>Chiamate per giorno</h4>
+                    <canvas id="dayChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h4>Chiamate per nodo</h4>
+                    <canvas id="nodeChart"></canvas>
+                </div>
+            </div>
+            <div class="stats-container"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <div class="table-container">
+                    <table class="stats-table">
+                        <thead><tr><th>Utente più attivo</th><th>Nome</th><th>Chiamate</th><th>Tempo</th></tr></thead>
+                        <tbody id="top-users-body"></tbody>
+                    </table>
+                </div>
+                <div class="table-container">
+                    <table class="stats-table">
+                        <thead><tr><th>TG / Riflettore</th><th>Chiamate</th><th>Tempo</th></tr></thead>
+                        <tbody id="top-tgs-body"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <div id="tab-repeaters" class="tab-pane">
@@ -240,6 +290,7 @@
         let currentNode = "all";
         let currentTG = "all";
         let currentId = "all";
+        let currentSearch = "";
         let currentCountry = "all";
         let modeChart, tgChart, map, markersLayer;
         let lastMapCallId = null;
@@ -501,6 +552,100 @@
             loadData();
         });
 
+        // Ricerca per nominativo / nome / ID (sottostringa, senza distinzione maiuscole)
+        function matchesSearch(call) {
+            if (!currentSearch) return true;
+            return [call.ID, call.NAME, call.id_raw].some(v => v && String(v).toLowerCase().includes(currentSearch));
+        }
+        let searchTimer = null;
+        document.getElementById('search-filter').addEventListener('input', (e) => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                currentSearch = e.target.value.trim().toLowerCase();
+                loadData();
+            }, 200);
+        });
+
+        // Export cronologia con filtro date opzionale
+        document.getElementById('export-calls-btn').addEventListener('click', (e) => {
+            const from = document.getElementById('export-from').value;
+            const to = document.getElementById('export-to').value;
+            if (from && to && from > to) {
+                e.preventDefault();
+                alert("La data iniziale deve precedere quella finale.");
+                return;
+            }
+            const params = new URLSearchParams();
+            if (from) params.set('from', from);
+            if (to) params.set('to', to);
+            e.currentTarget.href = '/api/export_calls' + (params.toString() ? '?' + params : '');
+        });
+
+        // Statistiche storiche
+        let hourChart, dayChart, nodeChart;
+        function escHtml(v) {
+            return String(v ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+        }
+        function fmtSeconds(s) {
+            s = Math.round(s || 0);
+            const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+            return h ? `${h}h ${m}m` : (m ? `${m}m ${s % 60}s` : `${s}s`);
+        }
+        function barChart(canvasId, color) {
+            const opts = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { color: '#94a3b8', precision: 0 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#94a3b8', maxRotation: 60 }, grid: { display: false } }
+                }
+            };
+            return new Chart(document.getElementById(canvasId).getContext('2d'), {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Chiamate', data: [], backgroundColor: color, borderRadius: 4 }] },
+                options: opts
+            });
+        }
+        async function loadHistoryStats() {
+            try {
+                if (!hourChart) {
+                    hourChart = barChart('hourChart', '#8b5cf6');
+                    dayChart = barChart('dayChart', '#10b981');
+                    nodeChart = barChart('nodeChart', '#f59e0b');
+                }
+                const days = document.getElementById('stats-days').value;
+                const res = await fetch('/api/stats?days=' + encodeURIComponent(days));
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                const st = await res.json();
+
+                hourChart.data.labels = st.by_hour.map((_, h) => String(h).padStart(2, '0') + ':00');
+                hourChart.data.datasets[0].data = st.by_hour;
+                hourChart.update('none');
+                dayChart.data.labels = st.by_day.labels.map(d => d.slice(5));
+                dayChart.data.datasets[0].data = st.by_day.values;
+                dayChart.update('none');
+                nodeChart.data.labels = st.by_node.map(n => n.node);
+                nodeChart.data.datasets[0].data = st.by_node.map(n => n.calls);
+                nodeChart.update('none');
+
+                const empty = '<tr><td colspan="4">Nessun dato</td></tr>';
+                document.getElementById('top-users-body').innerHTML = st.top_users.map(u =>
+                    `<tr><td data-label="Utente">${escHtml(u.callsign)}</td><td data-label="Nome">${escHtml(u.name)}</td><td data-label="Chiamate">${u.calls}</td><td data-label="Tempo">${fmtSeconds(u.seconds)}</td></tr>`
+                ).join('') || empty;
+                document.getElementById('top-tgs-body').innerHTML = st.top_tgs.map(t =>
+                    `<tr><td data-label="TG / Riflettore">${escHtml(t.tg)}</td><td data-label="Chiamate">${t.calls}</td><td data-label="Tempo">${fmtSeconds(t.seconds)}</td></tr>`
+                ).join('') || empty;
+                document.getElementById('stats-total').textContent = `${st.total} chiamate nel periodo`;
+                document.getElementById('stats-warning').style.display = st.history_kept ? 'none' : 'block';
+            } catch (e) {
+                console.error("Errore statistiche storiche:", e);
+            }
+        }
+        document.getElementById('stats-days').addEventListener('change', loadHistoryStats);
+        setInterval(() => {
+            if (document.getElementById('tab-stats').classList.contains('active')) loadHistoryStats();
+        }, 60000);
+
         // Gestione switch visualizzazione nodi
         document.getElementById('view-cards-btn').addEventListener('click', () => {
             document.getElementById('view-cards-btn').classList.add('active');
@@ -558,6 +703,8 @@
                     document.getElementById('node-filter').value = "all";
                     document.getElementById('tg-filter').value = "all";
                     document.getElementById('id-filter').value = "all";
+                    document.getElementById('search-filter').value = "";
+                    currentSearch = "";
                     currentNode = "all";
                     currentTG = "all";
                     currentId = "all";
@@ -580,6 +727,7 @@
                 if (isStats && map) {
                     setTimeout(() => map.invalidateSize(), 100);
                 }
+                if (isStats) loadHistoryStats();
             });
         });
 
@@ -798,10 +946,13 @@
         // Snapshot dei dati per confronto (esclude i timer live)
         let lastDataSnapshot = "";
 
+        let loadSeq = 0;
         async function loadData() {
             try {
+                const mySeq = ++loadSeq;
                 const res = await fetch('/data');
                 const response = await res.json();
+                if (mySeq !== loadSeq) return; // risposta superata da una piu' recente (filtri cambiati)
                 const data = response.calls; // Già ordinati dal backend (più recenti prima)
                 const serverTime = response.server_time;
                 const localTime = Date.now() / 1000;
@@ -816,7 +967,7 @@
                 }
 
                 // Crea uno snapshot per confronto (dati + filtri attivi)
-                const dataSnapshot = JSON.stringify(data) + `|${currentMode}|${currentNode}|${currentTG}|${currentId}`;
+                const dataSnapshot = JSON.stringify(data) + `|${currentMode}|${currentNode}|${currentTG}|${currentId}|${currentSearch}`;
                 const dataChanged = dataSnapshot !== lastDataSnapshot;
                 lastDataSnapshot = dataSnapshot;
 
@@ -850,7 +1001,7 @@
                         const modeMatch = currentMode === "all" || (call.MODE && call.MODE.toLowerCase() === currentMode);
                         const tgMatch = currentTG === "all" || call.TG === currentTG;
                         const idMatch = currentId === "all" || call.ID === currentId;
-                        if (!modeMatch || !tgMatch || !idMatch) return;
+                        if (!modeMatch || !tgMatch || !idMatch || !matchesSearch(call)) return;
 
                         const nodeName = (call.NODO || "N/A").toUpperCase();
                         if (!nodesByNode.has(nodeName)) {
@@ -900,7 +1051,7 @@
                         const tgMatch = currentTG === "all" || call.TG === currentTG;
                         const idMatch = currentId === "all" || call.ID === currentId;
 
-                        if (modeMatch && nodeMatch && tgMatch && idMatch) {
+                        if (modeMatch && nodeMatch && tgMatch && idMatch && matchesSearch(call)) {
                             tableHtml += buildRowHtml(call, lastServerOffset);
                         }
                     });
